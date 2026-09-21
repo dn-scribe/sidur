@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+<title>סידור אישי</title>
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+<header class="app-header" id="app-header">
+  <div class="header-start">
+    <button id="btn-back" class="icon-btn header-back" hidden title="חזרה">→</button>
+    <h1 class="app-title" id="header-title">📖 סידור</h1>
+  </div>
+  <nav class="header-actions">
+    <button id="btn-view-toggle" class="icon-btn" title="החלפת תצוגה" hidden>⇔</button>
+    <button id="btn-toc" class="icon-btn" title="תוכן עניינים" hidden>☰</button>
+    <button id="btn-export" class="icon-btn" title="ייצוא/ייבוא">💾</button>
+  </nav>
+</header>
+
+<main id="app-main">
+
+  <!-- BOOK LIST SCREEN -->
+  <section id="screen-books" class="screen active">
+    <div class="search-bar">
+      <input type="text" id="input-book-search" placeholder="חיפוש סידור..." />
+    </div>
+    <div id="book-categories"></div>
+    <div id="my-siddurs-section" hidden>
+      <h3 class="section-label">הסידורים שלי</h3>
+      <ul id="my-siddurs-list" class="siddur-list"></ul>
+    </div>
+  </section>
+
+  <!-- TOC SCREEN -->
+  <section id="screen-toc" class="screen">
+    <div class="toc-header">
+      <h2 id="toc-book-title"></h2>
+      <p id="toc-book-hetitle" class="muted"></p>
+    </div>
+    <div id="toc-tree" class="toc-tree"></div>
+  </section>
+
+  <!-- READER SCREEN -->
+  <section id="screen-reader" class="screen">
+    <div class="reader-info">
+      <h2 id="reader-section-title" class="reader-section-title"></h2>
+      <button id="btn-edit-section-title" class="icon-btn" title="עריכת כותרת הפרק" style="font-size:0.8rem;padding:0.25rem 0.5rem">✏</button>
+    </div>
+    <div class="reader-nav reader-nav-top">
+      <button id="btn-prev-section" class="nav-btn" title="קודם">← הקודם</button>
+      <button id="btn-next-section" class="nav-btn" title="הבא">הבא →</button>
+    </div>
+    <div id="reader-content" class="reader-content"></div>
+    <div class="reader-nav reader-nav-bottom">
+      <button id="btn-prev-section-bottom" class="nav-btn">← הקודם</button>
+      <button id="btn-next-section-bottom" class="nav-btn">הבא →</button>
+    </div>
+  </section>
+
+</main>
+
+<!-- EXPORT/IMPORT MODAL -->
+<div id="modal-export" class="modal-overlay" hidden>
+  <div class="modal-box">
+    <h3>ייצוא / ייבוא</h3>
+    <p class="muted">שמירת גיבוי של כל ההערות שלכם לקובץ JSON, או ייבוא מקובץ שמור.</p>
+    <div class="modal-actions">
+      <button id="btn-do-export" class="primary">⬇ ייצוא לקובץ</button>
+      <label class="secondary btn-like">
+        ⬆ ייבוא מקובץ
+        <input type="file" id="input-import" accept=".json" style="display:none" />
+      </label>
+      <button id="btn-close-export" class="secondary">סגירה</button>
+    </div>
+    <p id="export-status" class="muted"></p>
+  </div>
+</div>
+
+<!-- IMAGE EDITOR MODAL -->
+<div id="modal-image" class="modal-overlay" hidden>
+  <div class="modal-box modal-image-box">
+    <h3>עריכת תמונה</h3>
+    <div class="image-editor-area">
+      <canvas id="image-canvas"></canvas>
+      <div id="crop-rect" class="crop-rect" hidden></div>
+    </div>
+    <div class="image-editor-controls">
+      <button id="btn-rotate-ccw" class="secondary">↺ שמאל</button>
+      <button id="btn-rotate-cw" class="secondary">↻ ימין</button>
+      <span class="muted">גרור על התמונה לחיתוך</span>
+      <button id="btn-image-confirm" class="primary">הוספה</button>
+      <button id="btn-image-cancel" class="secondary">ביטול</button>
+    </div>
+  </div>
+</div>
+
+<!-- INSERTION EDITOR MODAL -->
+<div id="modal-insertion" class="modal-overlay" hidden>
+  <div class="modal-box">
+    <h3 id="insertion-modal-title">הוספת הערה</h3>
+    <label class="field-label">
+      כותרת (אופציונלי)
+      <input type="text" id="insertion-title-input" placeholder="כותרת..." />
+    </label>
+    <label class="field-label">
+      טקסט
+      <textarea id="insertion-text-input" rows="4" placeholder="טקסט הערה..."></textarea>
+    </label>
+    <div id="insertion-images" class="insertion-images"></div>
+    <div class="modal-actions">
+      <button id="btn-paste-image" class="secondary">📷 הדבקת תמונה</button>
+      <button id="btn-insertion-save" class="primary">שמירה</button>
+      <button id="btn-insertion-cancel" class="secondary">ביטול</button>
+    </div>
+    <p id="insertion-status" class="muted"></p>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast" class="toast" hidden></div>
+
+<script src="js/api.js"></script>
+<script src="js/storage.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
