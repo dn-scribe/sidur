@@ -269,6 +269,17 @@ body.wide-view .reader-content > .add-insertion-btn { display: none; }
 .insertion-block:hover .insertion-block-actions { opacity: 1; }
 .insertion-block-actions button { font-size: 0.76rem; padding: 0.22rem 0.5rem; }
 
+/* ── Removed paragraph placeholder ── */
+.removed-group {
+  display: flex; align-items: center; justify-content: center; gap: 0.75rem;
+  padding: 0.45rem 0.75rem;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  color: var(--muted); font-size: 0.85rem;
+  background: var(--bg);
+}
+body.wide-view .wide-row > .removed-group { grid-column: 1 / -1; grid-row: 1; }
+
 /* ── Modals ── */
 .modal-overlay {
   position: fixed; inset: 0; background: rgba(0,0,0,0.45);

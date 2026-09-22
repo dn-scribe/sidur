@@ -124,7 +124,7 @@ SD.App = (function () {
     const siddurId = currentSiddur?.id || '__default__';
     const ref = currentSection.ref;
     const annByRef = state.annotations[siddurId] || {};
-    const ann = annByRef[ref] || { customTitle: null, insertions: [] };
+    const ann = annByRef[ref] || { customTitle: null, insertions: [], removedParagraphs: [] };
     const textEdits = (state.textEdits?.[siddurId]?.[ref]) || {};
 
     const shortTitle = shortSectionTitle(currentSection.heRef || ref);
@@ -141,12 +141,15 @@ SD.App = (function () {
       textEdits,
       viewMode,
       showEn,
+      title: ann.customTitle || shortTitle,
       handlers: {
         onAddInsertion: (pos) => openInsertionEditor(pos, null),
         onEditInsertion: (ins) => openInsertionEditor(ins.beforeParagraph, ins),
         onDeleteInsertion: (id) => deleteInsertion(id),
         onEditParagraph: (index, text) => saveParagraphEdit(index, text),
         onRestoreParagraph: (index) => restoreParagraph(index),
+        onRemoveParagraph: (index) => removeParagraph(index),
+        onRestoreRemovedGroup: (indices) => restoreRemovedGroup(indices),
       },
     });
   }
@@ -161,7 +164,7 @@ SD.App = (function () {
 
   function getOrCreateAnnotation(siddurId, ref) {
     state.annotations[siddurId] = state.annotations[siddurId] || {};
-    state.annotations[siddurId][ref] = state.annotations[siddurId][ref] || { customTitle: null, insertions: [] };
+    state.annotations[siddurId][ref] = state.annotations[siddurId][ref] || { customTitle: null, insertions: [], removedParagraphs: [] };
     return state.annotations[siddurId][ref];
   }
 
@@ -227,6 +230,29 @@ SD.App = (function () {
     }
     renderReader();
     UI.toast('הטקסט המקורי שוחזר', '');
+  }
+
+  function removeParagraph(index) {
+    const siddurId = currentSiddur?.id || '__default__';
+    const ref = currentSection.ref;
+    const ann = getOrCreateAnnotation(siddurId, ref);
+    ann.removedParagraphs = ann.removedParagraphs || [];
+    if (!ann.removedParagraphs.includes(index)) {
+      ann.removedParagraphs.push(index);
+      ann.removedParagraphs.sort((a, b) => a - b);
+    }
+    Storage.save(state);
+    renderReader();
+  }
+
+  function restoreRemovedGroup(indices) {
+    const siddurId = currentSiddur?.id || '__default__';
+    const ref = currentSection.ref;
+    const ann = getOrCreateAnnotation(siddurId, ref);
+    const set = new Set(indices);
+    ann.removedParagraphs = (ann.removedParagraphs || []).filter(i => !set.has(i));
+    Storage.save(state);
+    renderReader();
   }
 
   function onDeleteSiddur(siddur) {

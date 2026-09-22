@@ -113,49 +113,64 @@ SD.UI = (function () {
 
   // ── Reader ──
 
-  function renderReader({ sectionData, annotations, textEdits, viewMode, showEn, handlers }) {
+  function renderReader({ sectionData, annotations, textEdits, viewMode, showEn, title, handlers }) {
     const content = $('reader-content');
     content.innerHTML = '';
 
     setViewMode(viewMode);
     setEnVisible(showEn);
 
-    const ann = annotations || { customTitle: null, insertions: [] };
+    const ann = annotations || { customTitle: null, insertions: [], removedParagraphs: [] };
     const edits = textEdits || {};
     const paragraphs = sectionData.he;
     const isWide = viewMode === 'wide';
     const maxPos = paragraphs.length;
+    const removed = new Set(ann.removedParagraphs || []);
 
-    // Custom section title block
-    if (ann.customTitle) {
+    if (title) {
       const titleEl = document.createElement('div');
       titleEl.className = 'section-title-block';
-      titleEl.textContent = ann.customTitle;
+      titleEl.textContent = title;
       content.appendChild(titleEl);
     }
 
-    for (let pos = 0; pos <= maxPos; pos++) {
+    let pos = 0;
+    while (pos <= maxPos) {
+      // Removed paragraph group: collapse consecutive removed paragraphs into one placeholder
+      if (pos < paragraphs.length && removed.has(pos)) {
+        let groupEnd = pos;
+        while (groupEnd + 1 < paragraphs.length && removed.has(groupEnd + 1)) groupEnd++;
+        const indices = [];
+        for (let i = pos; i <= groupEnd; i++) indices.push(i);
+        const placeholder = renderRemovedGroup(indices, handlers);
+        if (isWide) {
+          const row = document.createElement('div');
+          row.className = 'wide-row';
+          row.appendChild(placeholder);
+          content.appendChild(row);
+        } else {
+          content.appendChild(placeholder);
+        }
+        pos = groupEnd + 1;
+        continue;
+      }
+
       const insertions = (ann.insertions || []).filter(ins => ins.beforeParagraph === pos);
 
       if (isWide && pos < paragraphs.length) {
-        // Wide: annotation column left, prayer column right (RTL)
         const row = document.createElement('div');
         row.className = 'wide-row';
-
         const annCol = document.createElement('div');
         annCol.className = 'ann-col';
-
         const addBtn = makeAddBtn(pos, handlers);
         insertions.forEach(ins => annCol.appendChild(renderInsertionBlock(ins, handlers)));
         annCol.appendChild(addBtn);
-
         const enText = sectionData.text?.[pos] || '';
         const editedText = edits[pos] ?? null;
         row.appendChild(annCol);
         row.appendChild(renderParagraph(pos, paragraphs[pos], enText, editedText, handlers));
         content.appendChild(row);
       } else if (!isWide) {
-        // Normal view: insertions, then add-button, then paragraph
         insertions.forEach(ins => content.appendChild(renderInsertionBlock(ins, handlers)));
         content.appendChild(makeAddBtn(pos, handlers));
         if (pos < paragraphs.length) {
@@ -164,23 +179,36 @@ SD.UI = (function () {
           content.appendChild(renderParagraph(pos, paragraphs[pos], enText, editedText, handlers));
         }
       }
-      // Wide + pos === maxPos: handled entirely by the post-loop final row below
+      pos++;
     }
 
-    // Wide: "after last" insertions
+    // Wide: after-last-paragraph insertions
     if (isWide) {
       const after = (ann.insertions || []).filter(ins => ins.beforeParagraph === maxPos);
-      if (after.length || true) {
-        const row = document.createElement('div');
-        row.className = 'wide-row';
-        const annCol = document.createElement('div');
-        annCol.className = 'ann-col';
-        after.forEach(ins => annCol.appendChild(renderInsertionBlock(ins, handlers)));
-        annCol.appendChild(makeAddBtn(maxPos, handlers));
-        row.appendChild(annCol);
-        content.appendChild(row);
-      }
+      const row = document.createElement('div');
+      row.className = 'wide-row';
+      const annCol = document.createElement('div');
+      annCol.className = 'ann-col';
+      after.forEach(ins => annCol.appendChild(renderInsertionBlock(ins, handlers)));
+      annCol.appendChild(makeAddBtn(maxPos, handlers));
+      row.appendChild(annCol);
+      content.appendChild(row);
     }
+  }
+
+  function renderRemovedGroup(indices, handlers) {
+    const div = document.createElement('div');
+    div.className = 'removed-group';
+    const count = indices.length;
+    const label = document.createElement('span');
+    label.textContent = count === 1 ? 'פסקה אחת הוסרה' : `${count} פסקאות הוסרו`;
+    const restoreBtn = document.createElement('button');
+    restoreBtn.className = 'link-btn';
+    restoreBtn.textContent = 'שחזור';
+    restoreBtn.addEventListener('click', () => handlers.onRestoreRemovedGroup(indices));
+    div.appendChild(label);
+    div.appendChild(restoreBtn);
+    return div;
   }
 
   function makeAddBtn(pos, handlers) {
@@ -240,6 +268,12 @@ SD.UI = (function () {
     addAfterBtn.textContent = '+ הערה';
     addAfterBtn.addEventListener('click', () => handlers.onAddInsertion(index));
     acts.appendChild(addAfterBtn);
+
+    const removeBtn = document.createElement('button');
+    removeBtn.className = 'secondary';
+    removeBtn.textContent = '🚫 הסרה';
+    removeBtn.addEventListener('click', () => handlers.onRemoveParagraph(index));
+    acts.appendChild(removeBtn);
 
     div.appendChild(acts);
     return div;
