@@ -581,11 +581,49 @@ SD.UI = (function () {
     return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
 
+  // ── Settings modal ──
+
+  function renderSettings(container, { current, changelog }) {
+    container.innerHTML = '';
+
+    const verRow = document.createElement('div');
+    verRow.className = 'settings-version';
+    verRow.innerHTML = `<span class="settings-version-label">גרסה</span><span class="settings-version-badge">${esc(current)}</span>`;
+    container.appendChild(verRow);
+
+    const histLabel = document.createElement('div');
+    histLabel.className = 'settings-section-title';
+    histLabel.textContent = 'היסטוריית גרסאות';
+    container.appendChild(histLabel);
+
+    const list = document.createElement('div');
+    list.className = 'changelog-list';
+    changelog.forEach(entry => {
+      const item = document.createElement('div');
+      item.className = 'changelog-entry';
+      const header = document.createElement('div');
+      header.className = 'changelog-header';
+      header.innerHTML = `<span class="changelog-version">${esc(entry.version)}</span><span class="changelog-date">${esc(entry.date)}</span>`;
+      item.appendChild(header);
+      const ul = document.createElement('ul');
+      ul.className = 'changelog-items';
+      (entry.items || []).forEach(txt => {
+        const li = document.createElement('li');
+        li.textContent = txt;
+        ul.appendChild(li);
+      });
+      item.appendChild(ul);
+      list.appendChild(item);
+    });
+    container.appendChild(list);
+  }
+
   return {
     $, showScreen, toast, setHeader, setViewMode, setEnVisible,
     renderBookCategories, renderMySiddurs,
     renderToc,
     renderReader, updateSectionNav,
+    renderSettings,
     openInsertionEditor, closeInsertionEditor, getInsertionEditorData, addImageToEditor, getInsertionEditorCallbacks,
     openImageEditor, rotateImageEditor, resetCrop, confirmImageEditor, closeImageEditor, getImageEditorState,
     wireCropCanvas,

@@ -24,6 +24,7 @@
     <button id="btn-en-toggle" class="icon-btn" title="הצגת תרגום אנגלי" hidden>EN</button>
     <button id="btn-view-toggle" class="icon-btn" title="החלפת תצוגה" hidden>⇔</button>
     <button id="btn-toc" class="icon-btn" title="תוכן עניינים" hidden>☰</button>
+    <button id="btn-settings" class="icon-btn" title="הגדרות">⚙</button>
     <button id="btn-export" class="icon-btn" title="ייצוא/ייבוא">💾</button>
   </nav>
 </header>
@@ -69,6 +70,17 @@
   </section>
 
 </main>
+
+<!-- SETTINGS MODAL -->
+<div id="modal-settings" class="modal-overlay" hidden>
+  <div class="modal-box modal-settings-box">
+    <h3>הגדרות</h3>
+    <div id="settings-content"></div>
+    <div class="modal-actions">
+      <button id="btn-close-settings" class="secondary">סגירה</button>
+    </div>
+  </div>
+</div>
 
 <!-- EXPORT/IMPORT MODAL -->
 <div id="modal-export" class="modal-overlay" hidden>
@@ -137,6 +149,7 @@
 <script src="js/api.js"></script>
 <script src="js/storage.js"></script>
 <script src="js/ui.js"></script>
+<script src="js/version.js"></script>
 <script src="js/app.js"></script>
 <script>
   if ('serviceWorker' in navigator) {

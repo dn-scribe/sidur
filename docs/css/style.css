@@ -323,6 +323,40 @@ body.wide-view .wide-row > .removed-group { grid-column: 1 / -1; grid-row: 1; }
 .insertion-images-editor .ins-img-wrap img { width: auto; max-width: 100px; max-height: 100px; }
 .insertion-images-editor .ins-img-del { opacity: 1; }
 
+/* ── Settings modal ── */
+.modal-settings-box { max-width: 480px; }
+.settings-version {
+  display: flex; align-items: center; gap: 0.5rem;
+  padding-bottom: 0.5rem; border-bottom: 1px solid var(--border);
+}
+.settings-version-label { color: var(--muted); font-size: 0.9rem; }
+.settings-version-badge {
+  background: var(--accent); color: #fff;
+  border-radius: 6px; padding: 0.15rem 0.55rem;
+  font-size: 0.85rem; font-weight: 700; font-family: monospace;
+}
+.settings-section-title {
+  font-size: 0.73rem; font-weight: 700; letter-spacing: 0.05em;
+  color: var(--muted); text-transform: uppercase; margin: 0.75rem 0 0.4rem;
+}
+.changelog-list { display: flex; flex-direction: column; gap: 0.5rem; }
+.changelog-entry {
+  border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 0.6rem 0.85rem; background: var(--bg);
+}
+.changelog-header {
+  display: flex; align-items: baseline; gap: 0.5rem; margin-bottom: 0.25rem;
+}
+.changelog-version {
+  font-weight: 700; font-size: 0.88rem;
+  font-family: monospace; color: var(--accent-dark);
+}
+.changelog-date { font-size: 0.78rem; color: var(--muted); }
+.changelog-items {
+  margin: 0; padding-inline-start: 1.2rem;
+  font-size: 0.88rem; line-height: 1.65; color: var(--text);
+}
+
 /* ── Toast ── */
 .toast {
   position: fixed; bottom: 1.2rem; left: 50%; transform: translateX(-50%);

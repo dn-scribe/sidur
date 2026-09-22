@@ -329,6 +329,14 @@ SD.App = (function () {
 
     $('btn-edit-section-title').addEventListener('click', editSectionTitle);
 
+    // Settings
+    $('btn-settings').addEventListener('click', () => {
+      UI.renderSettings($('settings-content'), SD.Version);
+      $('modal-settings').hidden = false;
+    });
+    $('btn-close-settings').addEventListener('click', () => { $('modal-settings').hidden = true; });
+    $('modal-settings').addEventListener('click', (e) => { if (e.target === $('modal-settings')) $('modal-settings').hidden = true; });
+
     // Export / Import
     $('btn-export').addEventListener('click', () => { $('modal-export').hidden = false; $('export-status').textContent = ''; });
     $('btn-close-export').addEventListener('click', () => { $('modal-export').hidden = true; });
