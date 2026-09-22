@@ -5,23 +5,47 @@ SD.App = (function () {
   const Api = SD.Api;
   const Storage = SD.Storage;
 
-  let state = Storage.load();
+  // ── State ──
+  let siddurs = [];
   let viewMode = localStorage.getItem('sd.viewMode') || 'normal';
   let showEn = localStorage.getItem('sd.showEn') !== 'false';
 
   let currentSiddur = null;
-  let currentSection = null;   // { ref, heRef, he, text, next, prev }
+  let currentSection = null;
   let currentTocItems = [];
   let currentBookIndex = null;
+  let currentAnnotation = null;   // loaded per section from IndexedDB
+  let currentTextEdits = {};      // loaded per section from IndexedDB
 
   function $(id) { return document.getElementById(id); }
 
   // ── Init ──
 
-  function init() {
+  async function init() {
     UI.wireCropCanvas();
     wireEvents();
+    await Storage.migrateFromLocalStorage();
+    siddurs = await Storage.loadSiddurs();
     renderBooksScreen();
+  }
+
+  // ── Annotation helpers ──
+
+  function ensureAnnotation() {
+    if (!currentAnnotation) {
+      currentAnnotation = { ref: currentSection.ref, customTitle: null, insertions: [], removedParagraphs: [] };
+    }
+    return currentAnnotation;
+  }
+
+  async function persistAnnotation() {
+    if (!currentSiddur || !currentAnnotation) return;
+    await Storage.saveAnnotation(currentSiddur.id, currentAnnotation);
+  }
+
+  async function persistTextEdits() {
+    if (!currentSiddur || !currentSection) return;
+    await Storage.saveTextEdits(currentSiddur.id, currentSection.ref, currentTextEdits);
   }
 
   // ── Navigation ──
@@ -30,7 +54,7 @@ SD.App = (function () {
     UI.showScreen('books');
     UI.setHeader({ title: '📖 סידור', showBack: false, showViewToggle: false, showToc: false, showEnToggle: false });
     UI.renderBookCategories(Api.getLiturgyBooks(), onSelectBook);
-    UI.renderMySiddurs(state.siddurs, {
+    UI.renderMySiddurs(siddurs, {
       onOpen: (s) => { currentSiddur = s; openToc(s); },
       onDelete: onDeleteSiddur,
     });
@@ -51,21 +75,20 @@ SD.App = (function () {
       const index = await Api.fetchBookIndex(book.title);
       currentBookIndex = index;
 
-      if (!state.siddurs.find(s => s.title === book.title)) {
-        const newSiddur = {
+      let siddur = siddurs.find(s => s.title === book.title);
+      if (!siddur) {
+        siddur = {
           id: Storage.genId(),
           title: book.title,
           heTitle: book.heTitle || index.heTitle || book.title,
           currentRef: null,
+          createdAt: Date.now(),
         };
-        state.siddurs.unshift(newSiddur);
-        Storage.save(state);
-        currentSiddur = newSiddur;
-      } else {
-        currentSiddur = state.siddurs.find(s => s.title === book.title);
+        siddurs.unshift(siddur);
+        await Storage.saveSiddur(siddur);
       }
-
-      openToc(currentSiddur, index);
+      currentSiddur = siddur;
+      openToc(siddur, index);
     } catch (e) {
       UI.toast('שגיאה: ' + e.message, 'error');
     }
@@ -80,16 +103,7 @@ SD.App = (function () {
       }
       currentTocItems = Api.flattenSchema(index.schema, '');
       const items = currentTocItems.filter((_, i) => i > 0 || currentTocItems[0]?.isLeaf);
-
-      const siddurId = siddur.id;
-      const annByRef = state.annotations[siddurId] || {};
-      const annotatedRefs = new Set(
-        Object.entries(annByRef)
-          .filter(([, ann]) => ann.customTitle || ann.insertions?.length > 0)
-          .map(([ref]) => ref)
-      );
-      const textEditsByRef = state.textEdits?.[siddurId] || {};
-      Object.keys(textEditsByRef).forEach(ref => annotatedRefs.add(ref));
+      const annotatedRefs = await Storage.loadAnnotatedRefs(siddur.id);
 
       UI.showScreen('toc');
       UI.setHeader({ title: siddur.heTitle || siddur.title, showBack: true, showViewToggle: false, showToc: false, showEnToggle: false });
@@ -109,8 +123,15 @@ SD.App = (function () {
 
       if (currentSiddur) {
         currentSiddur.currentRef = ref;
-        Storage.save(state);
+        await Storage.saveSiddur(currentSiddur);
       }
+
+      const [ann, edits] = await Promise.all([
+        Storage.loadAnnotation(currentSiddur.id, ref),
+        Storage.loadTextEdits(currentSiddur.id, ref),
+      ]);
+      currentAnnotation = ann;
+      currentTextEdits = edits;
 
       renderReader();
     } catch (e) {
@@ -121,13 +142,8 @@ SD.App = (function () {
   function renderReader() {
     if (!currentSection) return;
 
-    const siddurId = currentSiddur?.id || '__default__';
-    const ref = currentSection.ref;
-    const annByRef = state.annotations[siddurId] || {};
-    const ann = annByRef[ref] || { customTitle: null, insertions: [], removedParagraphs: [] };
-    const textEdits = (state.textEdits?.[siddurId]?.[ref]) || {};
-
-    const shortTitle = shortSectionTitle(currentSection.heRef || ref);
+    const shortTitle = shortSectionTitle(currentSection.heRef || currentSection.ref);
+    const ann = currentAnnotation || { customTitle: null, insertions: [], removedParagraphs: [] };
 
     UI.showScreen('reader');
     UI.setHeader({ title: shortTitle, showBack: true, showViewToggle: true, showToc: true, showEnToggle: true });
@@ -138,7 +154,7 @@ SD.App = (function () {
     UI.renderReader({
       sectionData: currentSection,
       annotations: ann,
-      textEdits,
+      textEdits: currentTextEdits,
       viewMode,
       showEn,
       title: ann.customTitle || shortTitle,
@@ -163,12 +179,6 @@ SD.App = (function () {
 
   // ── Annotations ──
 
-  function getOrCreateAnnotation(siddurId, ref) {
-    state.annotations[siddurId] = state.annotations[siddurId] || {};
-    state.annotations[siddurId][ref] = state.annotations[siddurId][ref] || { customTitle: null, insertions: [], removedParagraphs: [] };
-    return state.annotations[siddurId][ref];
-  }
-
   function openInsertionEditor(beforeParagraph, existing, type) {
     const insType = type || existing?.type || 'inline';
     UI.openInsertionEditor({
@@ -178,14 +188,12 @@ SD.App = (function () {
     });
   }
 
-  function saveInsertion(beforeParagraph, existingId, data, type = 'inline') {
+  async function saveInsertion(beforeParagraph, existingId, data, type = 'inline') {
     if (!data.title && !data.text && data.images.length === 0) {
       UI.closeInsertionEditor();
       return;
     }
-    const siddurId = currentSiddur?.id || '__default__';
-    const ref = currentSection.ref;
-    const ann = getOrCreateAnnotation(siddurId, ref);
+    const ann = ensureAnnotation();
 
     if (existingId) {
       const ins = ann.insertions.find(i => i.id === existingId);
@@ -195,73 +203,60 @@ SD.App = (function () {
       ann.insertions.sort((a, b) => a.beforeParagraph - b.beforeParagraph);
     }
 
-    try { Storage.save(state); } catch (e) { UI.toast(e.message, 'error'); return; }
+    try { await persistAnnotation(); } catch (e) { UI.toast(e.message, 'error'); return; }
     UI.closeInsertionEditor();
     renderReader();
     UI.toast('נשמר', 'success');
   }
 
-  function deleteInsertion(id) {
-    const siddurId = currentSiddur?.id || '__default__';
-    const ref = currentSection.ref;
-    const ann = getOrCreateAnnotation(siddurId, ref);
+  async function deleteInsertion(id) {
+    const ann = ensureAnnotation();
     ann.insertions = ann.insertions.filter(i => i.id !== id);
-    Storage.save(state);
+    await persistAnnotation();
     renderReader();
     UI.toast('נמחק', '');
   }
 
-  function saveParagraphEdit(index, text) {
-    const siddurId = currentSiddur?.id || '__default__';
-    const ref = currentSection.ref;
-    state.textEdits = state.textEdits || {};
-    state.textEdits[siddurId] = state.textEdits[siddurId] || {};
-    state.textEdits[siddurId][ref] = state.textEdits[siddurId][ref] || {};
-    state.textEdits[siddurId][ref][index] = text;
-    try { Storage.save(state); } catch (e) { UI.toast(e.message, 'error'); return; }
+  async function saveParagraphEdit(index, text) {
+    currentTextEdits = currentTextEdits || {};
+    currentTextEdits[index] = text;
+    try { await persistTextEdits(); } catch (e) { UI.toast(e.message, 'error'); return; }
     renderReader();
     UI.toast('נשמר', 'success');
   }
 
-  function restoreParagraph(index) {
-    const siddurId = currentSiddur?.id || '__default__';
-    const ref = currentSection.ref;
-    if (state.textEdits?.[siddurId]?.[ref]) {
-      delete state.textEdits[siddurId][ref][index];
-      Storage.save(state);
-    }
+  async function restoreParagraph(index) {
+    currentTextEdits = currentTextEdits || {};
+    delete currentTextEdits[index];
+    await persistTextEdits();
     renderReader();
     UI.toast('הטקסט המקורי שוחזר', '');
   }
 
-  function removeParagraph(index) {
-    const siddurId = currentSiddur?.id || '__default__';
-    const ref = currentSection.ref;
-    const ann = getOrCreateAnnotation(siddurId, ref);
+  async function removeParagraph(index) {
+    const ann = ensureAnnotation();
     ann.removedParagraphs = ann.removedParagraphs || [];
     if (!ann.removedParagraphs.includes(index)) {
       ann.removedParagraphs.push(index);
       ann.removedParagraphs.sort((a, b) => a - b);
     }
-    Storage.save(state);
+    await persistAnnotation();
     renderReader();
   }
 
-  function restoreRemovedGroup(indices) {
-    const siddurId = currentSiddur?.id || '__default__';
-    const ref = currentSection.ref;
-    const ann = getOrCreateAnnotation(siddurId, ref);
+  async function restoreRemovedGroup(indices) {
+    const ann = ensureAnnotation();
     const set = new Set(indices);
     ann.removedParagraphs = (ann.removedParagraphs || []).filter(i => !set.has(i));
-    Storage.save(state);
+    await persistAnnotation();
     renderReader();
   }
 
-  function onDeleteSiddur(siddur) {
+  async function onDeleteSiddur(siddur) {
     if (!confirm(`למחוק את "${siddur.heTitle || siddur.title}" מהרשימה?`)) return;
-    state.siddurs = state.siddurs.filter(s => s.id !== siddur.id);
-    Storage.save(state);
-    UI.renderMySiddurs(state.siddurs, {
+    siddurs = siddurs.filter(s => s.id !== siddur.id);
+    await Storage.deleteSiddur(siddur.id);
+    UI.renderMySiddurs(siddurs, {
       onOpen: (s) => { currentSiddur = s; openToc(s); },
       onDelete: onDeleteSiddur,
     });
@@ -278,13 +273,23 @@ SD.App = (function () {
     }, () => {});
   }
 
+  // ── Edit section title ──
+
+  async function editSectionTitle() {
+    if (!currentSection) return;
+    const ann = ensureAnnotation();
+    const val = prompt('כותרת מותאמת אישית לפרק (ריק = ברירת מחדל):', ann.customTitle || '');
+    if (val === null) return;
+    ann.customTitle = val.trim() || null;
+    await persistAnnotation();
+    renderReader();
+  }
+
   // ── Event wiring ──
 
   function wireEvents() {
-    // Book search
     $('input-book-search').addEventListener('input', (e) => filterBooks(e.target.value));
 
-    // Back button
     $('btn-back').addEventListener('click', () => {
       const active = document.querySelector('.screen.active');
       if (active?.id === 'screen-reader') {
@@ -295,61 +300,48 @@ SD.App = (function () {
       }
     });
 
-    // View toggle
     $('btn-view-toggle').addEventListener('click', () => {
       viewMode = viewMode === 'wide' ? 'normal' : 'wide';
       localStorage.setItem('sd.viewMode', viewMode);
       renderReader();
     });
 
-    // EN toggle
     $('btn-en-toggle').addEventListener('click', () => {
       showEn = !showEn;
       localStorage.setItem('sd.showEn', showEn);
       UI.setEnVisible(showEn);
     });
 
-    // TOC from reader
     $('btn-toc').addEventListener('click', () => {
       if (currentSiddur && currentBookIndex) openToc(currentSiddur, currentBookIndex);
     });
 
-    // Navigation
     $('btn-prev-section').addEventListener('click', () => currentSection?.prev && openSection(currentSection.prev));
     $('btn-next-section').addEventListener('click', () => currentSection?.next && openSection(currentSection.next));
     $('btn-prev-section-bottom').addEventListener('click', () => currentSection?.prev && openSection(currentSection.prev));
     $('btn-next-section-bottom').addEventListener('click', () => currentSection?.next && openSection(currentSection.next));
 
-    // Keyboard navigation
     document.addEventListener('keydown', (e) => {
       if (!$('modal-insertion').hidden || !$('modal-image').hidden) return;
       if (e.key === 'ArrowLeft') $('btn-next-section').click();
       if (e.key === 'ArrowRight') $('btn-prev-section').click();
     });
 
-    // Edit section title
-    $('btn-edit-section-title').addEventListener('click', () => {
-      if (!currentSection) return;
-      const siddurId = currentSiddur?.id || '__default__';
-      const ref = currentSection.ref;
-      const ann = getOrCreateAnnotation(siddurId, ref);
-      const val = prompt('כותרת מותאמת אישית לפרק (ריק = ברירת מחדל):', ann.customTitle || '');
-      if (val === null) return;
-      ann.customTitle = val.trim() || null;
-      Storage.save(state);
-      renderReader();
-    });
+    $('btn-edit-section-title').addEventListener('click', editSectionTitle);
 
-    // Export/Import
+    // Export / Import
     $('btn-export').addEventListener('click', () => { $('modal-export').hidden = false; $('export-status').textContent = ''; });
     $('btn-close-export').addEventListener('click', () => { $('modal-export').hidden = true; });
-    $('btn-do-export').addEventListener('click', () => { Storage.exportBackup(state); $('export-status').textContent = 'הקובץ הורד'; });
+    $('btn-do-export').addEventListener('click', async () => {
+      await Storage.exportBackup();
+      $('export-status').textContent = 'הקובץ הורד';
+    });
     $('input-import').addEventListener('change', async (e) => {
       const file = e.target.files[0];
       if (!file) return;
       try {
-        state = await Storage.importBackup(file);
-        Storage.save(state);
+        await Storage.importBackup(file);
+        siddurs = await Storage.loadSiddurs();
         $('modal-export').hidden = true;
         renderBooksScreen();
         UI.toast('ייבוא הצליח', 'success');
@@ -358,21 +350,19 @@ SD.App = (function () {
       }
     });
 
-    // Insertion editor modal
+    // Insertion editor
     $('btn-insertion-save').addEventListener('click', () => {
       const { onSave } = UI.getInsertionEditorCallbacks();
       if (onSave) onSave(UI.getInsertionEditorData());
     });
     $('btn-insertion-cancel').addEventListener('click', () => UI.closeInsertionEditor());
 
-    // Image file picker inside insertion editor
     $('input-image-file').addEventListener('change', (e) => {
       const file = e.target.files[0];
-      e.target.value = '';   // allow re-picking same file
+      e.target.value = '';
       if (file) handleImageFile(file);
     });
 
-    // Paste image
     document.addEventListener('paste', (e) => {
       if ($('modal-insertion').hidden && $('modal-image').hidden) return;
       const items = Array.from(e.clipboardData?.items || []);
@@ -382,7 +372,7 @@ SD.App = (function () {
       handleImageFile(imgItem.getAsFile());
     });
 
-    // Image editor modal
+    // Image editor
     $('btn-rotate-ccw').addEventListener('click', () => UI.rotateImageEditor('ccw'));
     $('btn-rotate-cw').addEventListener('click', () => UI.rotateImageEditor('cw'));
     $('btn-crop-reset').addEventListener('click', () => UI.resetCrop());
