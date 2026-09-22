@@ -17,7 +17,8 @@ const SHELL = [
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME)
-      .then(cache => cache.addAll(SHELL))
+      // cache: 'reload' bypasses the HTTP cache so we always get fresh files
+      .then(cache => cache.addAll(SHELL.map(url => new Request(url, { cache: 'reload' }))))
       .then(() => self.skipWaiting())
   );
 });
