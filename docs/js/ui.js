@@ -146,8 +146,8 @@ SD.UI = (function () {
         annCol.className = 'ann-col';
 
         const addBtn = makeAddBtn(pos, handlers);
-        annCol.appendChild(addBtn);
         insertions.forEach(ins => annCol.appendChild(renderInsertionBlock(ins, handlers)));
+        annCol.appendChild(addBtn);
 
         const enText = sectionData.text?.[pos] || '';
         const editedText = edits[pos] ?? null;
@@ -174,8 +174,8 @@ SD.UI = (function () {
         row.className = 'wide-row';
         const annCol = document.createElement('div');
         annCol.className = 'ann-col';
-        annCol.appendChild(makeAddBtn(maxPos, handlers));
         after.forEach(ins => annCol.appendChild(renderInsertionBlock(ins, handlers)));
+        annCol.appendChild(makeAddBtn(maxPos, handlers));
         row.appendChild(annCol);
         content.appendChild(row);
       }
@@ -450,9 +450,20 @@ SD.UI = (function () {
     if (!cs || !ce) return;
     const x = Math.min(cs.x, ce.x), y = Math.min(cs.y, ce.y);
     const w = Math.abs(ce.x - cs.x), h = Math.abs(ce.y - cs.y);
-    ctx.fillStyle = 'rgba(0,0,0,0.38)';
+    // Darken outside the selection
+    ctx.fillStyle = 'rgba(0,0,0,0.48)';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.clearRect(x, y, w, h);
+    // Re-draw the image inside the selection so it shows through (not black)
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(x, y, w, h);
+    ctx.clip();
+    ctx.translate(canvas.width / 2, canvas.height / 2);
+    ctx.rotate((_img.rotation || 0) * Math.PI / 180);
+    const img = _img.sourceImg, s = _img.scale || 1;
+    ctx.drawImage(img, -img.naturalWidth * s / 2, -img.naturalHeight * s / 2, img.naturalWidth * s, img.naturalHeight * s);
+    ctx.restore();
+    // Selection border
     ctx.strokeStyle = '#fff';
     ctx.lineWidth = 1.5;
     ctx.strokeRect(x, y, w, h);
