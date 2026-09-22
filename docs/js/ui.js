@@ -154,8 +154,8 @@ SD.UI = (function () {
         row.appendChild(annCol);
         row.appendChild(renderParagraph(pos, paragraphs[pos], enText, editedText, handlers));
         content.appendChild(row);
-      } else {
-        // Normal: insertions, then add-button, then paragraph
+      } else if (!isWide) {
+        // Normal view: insertions, then add-button, then paragraph
         insertions.forEach(ins => content.appendChild(renderInsertionBlock(ins, handlers)));
         content.appendChild(makeAddBtn(pos, handlers));
         if (pos < paragraphs.length) {
@@ -164,6 +164,7 @@ SD.UI = (function () {
           content.appendChild(renderParagraph(pos, paragraphs[pos], enText, editedText, handlers));
         }
       }
+      // Wide + pos === maxPos: handled entirely by the post-loop final row below
     }
 
     // Wide: "after last" insertions
