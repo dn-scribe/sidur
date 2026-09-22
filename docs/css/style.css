@@ -185,9 +185,11 @@ body.wide-view .wide-row {
   align-items: start;
   margin-bottom: 0.5rem;
 }
-/* In RTL grid, column 1 = right, column 2 = left */
-body.wide-view .wide-row .para-row   { grid-column: 1 / 2; }  /* prayer on right */
-body.wide-view .wide-row .ann-col    { grid-column: 2 / 3; display: flex; flex-direction: column; gap: 0.4rem; }  /* notes on left */
+/* In RTL grid, column 1 = right, column 2 = left.
+   grid-row: 1 is required because ann-col (first in DOM, col 2) causes
+   auto-placement to wrap para-row to a second grid row instead of col 1. */
+body.wide-view .wide-row .para-row   { grid-column: 1 / 2; grid-row: 1; }
+body.wide-view .wide-row .ann-col    { grid-column: 2 / 3; grid-row: 1; display: flex; flex-direction: column; gap: 0.4rem; }
 
 /* ── Paragraph ── */
 .para-row {
@@ -321,5 +323,5 @@ body.wide-view .reader-content > .add-insertion-btn { display: none; }
   .modal-actions { flex-direction: column; }
   body.wide-view .wide-row { grid-template-columns: 1fr; }
   body.wide-view .wide-row .para-row,
-  body.wide-view .wide-row .ann-col { grid-column: 1 / -1; }
+  body.wide-view .wide-row .ann-col { grid-column: 1 / -1; grid-row: auto; }
 }
