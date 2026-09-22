@@ -143,7 +143,8 @@ SD.App = (function () {
       showEn,
       title: ann.customTitle || shortTitle,
       handlers: {
-        onAddInsertion: (pos) => openInsertionEditor(pos, null),
+        onAddInsertion: (pos) => openInsertionEditor(pos, null, 'inline'),
+        onAddBetweenInsertion: (pos) => openInsertionEditor(pos, null, 'between'),
         onEditInsertion: (ins) => openInsertionEditor(ins.beforeParagraph, ins),
         onDeleteInsertion: (id) => deleteInsertion(id),
         onEditParagraph: (index, text) => saveParagraphEdit(index, text),
@@ -168,15 +169,16 @@ SD.App = (function () {
     return state.annotations[siddurId][ref];
   }
 
-  function openInsertionEditor(beforeParagraph, existing) {
+  function openInsertionEditor(beforeParagraph, existing, type) {
+    const insType = type || existing?.type || 'inline';
     UI.openInsertionEditor({
       existing,
-      onSave: (data) => saveInsertion(beforeParagraph, existing?.id, data),
+      onSave: (data) => saveInsertion(beforeParagraph, existing?.id, data, insType),
       onCancel: () => UI.closeInsertionEditor(),
     });
   }
 
-  function saveInsertion(beforeParagraph, existingId, data) {
+  function saveInsertion(beforeParagraph, existingId, data, type = 'inline') {
     if (!data.title && !data.text && data.images.length === 0) {
       UI.closeInsertionEditor();
       return;
@@ -189,7 +191,7 @@ SD.App = (function () {
       const ins = ann.insertions.find(i => i.id === existingId);
       if (ins) { ins.title = data.title; ins.text = data.text; ins.images = data.images; }
     } else {
-      ann.insertions.push({ id: Storage.genId(), beforeParagraph, title: data.title, text: data.text, images: data.images });
+      ann.insertions.push({ id: Storage.genId(), beforeParagraph, type, title: data.title, text: data.text, images: data.images });
       ann.insertions.sort((a, b) => a.beforeParagraph - b.beforeParagraph);
     }
 

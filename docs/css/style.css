@@ -227,7 +227,17 @@ body.hide-en .para-en { display: none; }
 }
 .add-insertion-btn:hover { opacity: 1; background: var(--accent-light); color: var(--accent-dark); border-color: var(--accent); }
 
-/* In wide view, show add-insertion inside ann-col */
+/* ── Between-section area ── */
+.between-area { display: flex; flex-direction: column; gap: 0.35rem; }
+/* Between add-btn is subtler than the inline one */
+.add-insertion-btn.add-between { font-size: 0.72rem; opacity: 0.3; }
+.add-insertion-btn.add-between:hover { opacity: 1; }
+/* Between insertions: solid left accent stripe to distinguish from inline */
+.insertion-block.between {
+  border-left: 3px solid var(--accent);
+  border-style: solid;
+}
+/* In wide view, add-btns that aren't in ann-col or between-area are hidden */
 body.wide-view .reader-content > .add-insertion-btn { display: none; }
 
 /* ── Section title block ── */

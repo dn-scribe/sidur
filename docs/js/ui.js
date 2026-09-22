@@ -136,7 +136,7 @@ SD.UI = (function () {
 
     let pos = 0;
     while (pos <= maxPos) {
-      // Removed paragraph group: collapse consecutive removed paragraphs into one placeholder
+      // Removed paragraph group
       if (pos < paragraphs.length && removed.has(pos)) {
         let groupEnd = pos;
         while (groupEnd + 1 < paragraphs.length && removed.has(groupEnd + 1)) groupEnd++;
@@ -155,24 +155,32 @@ SD.UI = (function () {
         continue;
       }
 
-      const insertions = (ann.insertions || []).filter(ins => ins.beforeParagraph === pos);
+      const allIns = (ann.insertions || []).filter(ins => ins.beforeParagraph === pos);
+      const betweenIns = allIns.filter(ins => ins.type === 'between');
+      // existing insertions without a type field are treated as inline
+      const inlineIns = allIns.filter(ins => ins.type !== 'between');
 
-      if (isWide && pos < paragraphs.length) {
-        const row = document.createElement('div');
-        row.className = 'wide-row';
-        const annCol = document.createElement('div');
-        annCol.className = 'ann-col';
-        const addBtn = makeAddBtn(pos, handlers);
-        insertions.forEach(ins => annCol.appendChild(renderInsertionBlock(ins, handlers)));
-        annCol.appendChild(addBtn);
-        const enText = sectionData.text?.[pos] || '';
-        const editedText = edits[pos] ?? null;
-        row.appendChild(annCol);
-        row.appendChild(renderParagraph(pos, paragraphs[pos], enText, editedText, handlers));
-        content.appendChild(row);
-      } else if (!isWide) {
-        insertions.forEach(ins => content.appendChild(renderInsertionBlock(ins, handlers)));
-        content.appendChild(makeAddBtn(pos, handlers));
+      if (isWide) {
+        // Full-width between-area always sits between wide-rows
+        content.appendChild(renderBetweenArea(pos, betweenIns, handlers));
+        if (pos < paragraphs.length) {
+          const row = document.createElement('div');
+          row.className = 'wide-row';
+          const annCol = document.createElement('div');
+          annCol.className = 'ann-col';
+          inlineIns.forEach(ins => annCol.appendChild(renderInsertionBlock(ins, handlers)));
+          annCol.appendChild(makeAddBtn(pos, handlers, 'inline'));
+          const enText = sectionData.text?.[pos] || '';
+          const editedText = edits[pos] ?? null;
+          row.appendChild(annCol);
+          row.appendChild(renderParagraph(pos, paragraphs[pos], enText, editedText, handlers));
+          content.appendChild(row);
+        }
+      } else {
+        // Normal view: between insertions first (they sit in the gap), then inline
+        betweenIns.forEach(ins => content.appendChild(renderInsertionBlock(ins, handlers)));
+        content.appendChild(makeAddBtn(pos, handlers, 'between'));
+        inlineIns.forEach(ins => content.appendChild(renderInsertionBlock(ins, handlers)));
         if (pos < paragraphs.length) {
           const enText = sectionData.text?.[pos] || '';
           const editedText = edits[pos] ?? null;
@@ -181,19 +189,7 @@ SD.UI = (function () {
       }
       pos++;
     }
-
-    // Wide: after-last-paragraph insertions
-    if (isWide) {
-      const after = (ann.insertions || []).filter(ins => ins.beforeParagraph === maxPos);
-      const row = document.createElement('div');
-      row.className = 'wide-row';
-      const annCol = document.createElement('div');
-      annCol.className = 'ann-col';
-      after.forEach(ins => annCol.appendChild(renderInsertionBlock(ins, handlers)));
-      annCol.appendChild(makeAddBtn(maxPos, handlers));
-      row.appendChild(annCol);
-      content.appendChild(row);
-    }
+    // No post-loop needed: the between-area for pos===maxPos is rendered above
   }
 
   function renderRemovedGroup(indices, handlers) {
@@ -211,12 +207,20 @@ SD.UI = (function () {
     return div;
   }
 
-  function makeAddBtn(pos, handlers) {
+  function makeAddBtn(pos, handlers, type = 'inline') {
     const btn = document.createElement('button');
-    btn.className = 'add-insertion-btn';
-    btn.textContent = '+ הוספת הערה';
-    btn.addEventListener('click', () => handlers.onAddInsertion(pos));
+    btn.className = type === 'between' ? 'add-insertion-btn add-between' : 'add-insertion-btn';
+    btn.textContent = type === 'between' ? '+ הוסף הערה בין קטעים' : '+ הוספת הערה';
+    btn.addEventListener('click', () => type === 'between' ? handlers.onAddBetweenInsertion(pos) : handlers.onAddInsertion(pos));
     return btn;
+  }
+
+  function renderBetweenArea(pos, betweenInsertions, handlers) {
+    const div = document.createElement('div');
+    div.className = 'between-area';
+    betweenInsertions.forEach(ins => div.appendChild(renderInsertionBlock(ins, handlers)));
+    div.appendChild(makeAddBtn(pos, handlers, 'between'));
+    return div;
   }
 
   function renderParagraph(index, heText, enText, editedText, handlers) {
@@ -328,7 +332,7 @@ SD.UI = (function () {
 
   function renderInsertionBlock(ins, handlers) {
     const div = document.createElement('div');
-    div.className = 'insertion-block';
+    div.className = 'insertion-block' + (ins.type === 'between' ? ' between' : '');
     div.dataset.id = ins.id;
 
     if (ins.title) {
