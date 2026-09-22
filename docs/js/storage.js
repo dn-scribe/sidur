@@ -6,8 +6,13 @@ SD.Storage = (function () {
   function defaultState() {
     return {
       siddurs: [],
-      // annotations[siddurId][ref] = { customTitle, insertions: [{id, beforeParagraph, title, text, images:[{id,dataUrl,rotation}]}] }
+      // annotations[siddurId][ref] = {
+      //   customTitle: string|null,
+      //   insertions: [{id, beforeParagraph, title, text, images:[{id,dataUrl}]}]
+      // }
       annotations: {},
+      // textEdits[siddurId][ref][paragraphIndex] = "edited text"
+      textEdits: {},
     };
   }
 
@@ -15,7 +20,8 @@ SD.Storage = (function () {
     try {
       const raw = localStorage.getItem(KEY);
       if (!raw) return defaultState();
-      return Object.assign(defaultState(), JSON.parse(raw));
+      const parsed = JSON.parse(raw);
+      return Object.assign(defaultState(), parsed);
     } catch (e) {
       console.error('Failed to load state', e);
       return defaultState();
@@ -26,8 +32,8 @@ SD.Storage = (function () {
     try {
       localStorage.setItem(KEY, JSON.stringify(state));
     } catch (e) {
-      console.error('Failed to save state', e);
-      if (e.name === 'QuotaExceededError') throw new Error('אחסון מלא — נסו לייצא ולמחוק חלק מהתמונות');
+      if (e.name === 'QuotaExceededError') throw new Error('אחסון מלא — ייצאו גיבוי ומחקו תמונות ישנות');
+      throw e;
     }
   }
 
