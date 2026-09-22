@@ -59,6 +59,18 @@ SD.App = (function () {
       onDelete: onDeleteSiddur,
     });
     filterBooks('');
+    updateStorageInfo();
+  }
+
+  async function updateStorageInfo() {
+    const el = $('storage-info');
+    if (!el || !navigator.storage?.estimate) return;
+    try {
+      const { usage, quota } = await navigator.storage.estimate();
+      const usageMB = (usage / 1024 / 1024).toFixed(1);
+      const quotaMB = Math.round(quota / 1024 / 1024);
+      el.textContent = `אחסון: ${usageMB} MB בשימוש מתוך ${quotaMB} MB`;
+    } catch { el.textContent = ''; }
   }
 
   function filterBooks(query) {
@@ -109,13 +121,18 @@ SD.App = (function () {
       UI.setHeader({ title: siddur.heTitle || siddur.title, showBack: true, showViewToggle: false, showToc: false, showEnToggle: false });
       UI.$('toc-book-title').textContent = siddur.heTitle || siddur.title;
       UI.$('toc-book-hetitle').textContent = siddur.title;
-      UI.renderToc(items, siddur.currentRef, annotatedRefs, (ref) => openSection(ref));
+      const removedSet = new Set(siddur.removedSections || []);
+      UI.renderToc(items, siddur.currentRef, annotatedRefs, removedSet, {
+        onSelect: (ref) => openSection(ref),
+        onRemove: (ref) => removeSection(ref),
+        onRestore: (ref) => restoreSection(ref),
+      });
     } catch (e) {
       UI.toast('שגיאה: ' + e.message, 'error');
     }
   }
 
-  async function openSection(ref) {
+  async function openSection(ref, scrollTo = 'top') {
     try {
       UI.toast('טוען...', '');
       const section = await Api.fetchSection(ref);
@@ -133,41 +150,57 @@ SD.App = (function () {
       currentAnnotation = ann;
       currentTextEdits = edits;
 
-      renderReader();
+      renderReader(scrollTo);
     } catch (e) {
       UI.toast('שגיאה: ' + e.message, 'error');
     }
   }
 
-  function renderReader() {
+  function renderReader(scrollTo = 'top') {
     if (!currentSection) return;
 
     const shortTitle = shortSectionTitle(currentSection.heRef || currentSection.ref);
     const ann = currentAnnotation || { customTitle: null, insertions: [], removedParagraphs: [] };
+    const isRemoved = (currentSiddur?.removedSections || []).includes(currentSection.ref);
 
     UI.showScreen('reader');
-    UI.setHeader({ title: shortTitle, showBack: true, showViewToggle: true, showToc: true, showEnToggle: true });
-    UI.setEnVisible(showEn);
+    UI.setHeader({ title: shortTitle, showBack: true, showViewToggle: !isRemoved, showToc: true, showEnToggle: !isRemoved });
     UI.$('reader-section-title').textContent = ann.customTitle || shortTitle;
     UI.updateSectionNav(currentSection.prev, currentSection.next);
 
-    UI.renderReader({
-      sectionData: currentSection,
-      annotations: ann,
-      textEdits: currentTextEdits,
-      viewMode,
-      showEn,
-      title: ann.customTitle || shortTitle,
-      handlers: {
-        onAddInsertion: (pos) => openInsertionEditor(pos, null, 'inline'),
-        onAddBetweenInsertion: (pos) => openInsertionEditor(pos, null, 'between'),
-        onEditInsertion: (ins) => openInsertionEditor(ins.beforeParagraph, ins),
-        onDeleteInsertion: (id) => deleteInsertion(id),
-        onEditParagraph: (index, text) => saveParagraphEdit(index, text),
-        onRestoreParagraph: (index) => restoreParagraph(index),
-        onRemoveParagraph: (index) => removeParagraph(index),
-        onRestoreRemovedGroup: (indices) => restoreRemovedGroup(indices),
-      },
+    if (isRemoved) {
+      UI.renderRemovedSection({
+        title: ann.customTitle || shortTitle,
+        onRestore: () => restoreSection(currentSection.ref),
+      });
+    } else {
+      UI.setEnVisible(showEn);
+      UI.renderReader({
+        sectionData: currentSection,
+        annotations: ann,
+        textEdits: currentTextEdits,
+        viewMode,
+        showEn,
+        title: ann.customTitle || shortTitle,
+        handlers: {
+          onAddInsertion: (pos) => openInsertionEditor(pos, null, 'inline'),
+          onAddBetweenInsertion: (pos) => openInsertionEditor(pos, null, 'between'),
+          onEditInsertion: (ins) => openInsertionEditor(ins.beforeParagraph, ins),
+          onDeleteInsertion: (id) => deleteInsertion(id),
+          onEditParagraph: (index, text) => saveParagraphEdit(index, text),
+          onRestoreParagraph: (index) => restoreParagraph(index),
+          onRemoveParagraph: (index) => removeParagraph(index),
+          onRestoreRemovedGroup: (indices) => restoreRemovedGroup(indices),
+        },
+      });
+    }
+
+    requestAnimationFrame(() => {
+      if (scrollTo === 'bottom') {
+        window.scrollTo({ top: document.body.scrollHeight });
+      } else {
+        window.scrollTo({ top: 0 });
+      }
     });
   }
 
@@ -252,6 +285,29 @@ SD.App = (function () {
     renderReader();
   }
 
+  async function removeSection(ref) {
+    if (!currentSiddur) return;
+    currentSiddur.removedSections = currentSiddur.removedSections || [];
+    if (!currentSiddur.removedSections.includes(ref)) {
+      currentSiddur.removedSections.push(ref);
+      await Storage.saveSiddur(currentSiddur);
+    }
+    UI.toast('הפרק הוסר', '');
+    if (currentBookIndex) openToc(currentSiddur, currentBookIndex);
+  }
+
+  async function restoreSection(ref) {
+    if (!currentSiddur) return;
+    currentSiddur.removedSections = (currentSiddur.removedSections || []).filter(r => r !== ref);
+    await Storage.saveSiddur(currentSiddur);
+    UI.toast('הפרק שוחזר', 'success');
+    if (currentSection?.ref === ref) {
+      await openSection(ref, 'top');
+    } else if (currentBookIndex) {
+      openToc(currentSiddur, currentBookIndex);
+    }
+  }
+
   async function onDeleteSiddur(siddur) {
     if (!confirm(`למחוק את "${siddur.heTitle || siddur.title}" מהרשימה?`)) return;
     siddurs = siddurs.filter(s => s.id !== siddur.id);
@@ -316,15 +372,15 @@ SD.App = (function () {
       if (currentSiddur && currentBookIndex) openToc(currentSiddur, currentBookIndex);
     });
 
-    $('btn-prev-section').addEventListener('click', () => currentSection?.prev && openSection(currentSection.prev));
-    $('btn-next-section').addEventListener('click', () => currentSection?.next && openSection(currentSection.next));
-    $('btn-prev-section-bottom').addEventListener('click', () => currentSection?.prev && openSection(currentSection.prev));
-    $('btn-next-section-bottom').addEventListener('click', () => currentSection?.next && openSection(currentSection.next));
+    $('btn-prev-section').addEventListener('click', () => currentSection?.prev && openSection(currentSection.prev, 'bottom'));
+    $('btn-next-section').addEventListener('click', () => currentSection?.next && openSection(currentSection.next, 'top'));
+    $('btn-prev-section-bottom').addEventListener('click', () => currentSection?.prev && openSection(currentSection.prev, 'bottom'));
+    $('btn-next-section-bottom').addEventListener('click', () => currentSection?.next && openSection(currentSection.next, 'top'));
 
     document.addEventListener('keydown', (e) => {
       if (!$('modal-insertion').hidden || !$('modal-image').hidden) return;
-      if (e.key === 'ArrowLeft') $('btn-next-section').click();
-      if (e.key === 'ArrowRight') $('btn-prev-section').click();
+      if (e.key === 'ArrowLeft' && currentSection?.next) openSection(currentSection.next, 'top');
+      if (e.key === 'ArrowRight' && currentSection?.prev) openSection(currentSection.prev, 'bottom');
     });
 
     $('btn-edit-section-title').addEventListener('click', editSectionTitle);

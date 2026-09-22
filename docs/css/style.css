@@ -323,6 +323,38 @@ body.wide-view .wide-row > .removed-group { grid-column: 1 / -1; grid-row: 1; }
 .insertion-images-editor .ins-img-wrap img { width: auto; max-width: 100px; max-height: 100px; }
 .insertion-images-editor .ins-img-del { opacity: 1; }
 
+/* ── Storage info ── */
+.storage-info { text-align: center; padding: 0.9rem 0 0.1rem; font-size: 0.78rem; }
+
+/* ── Removed section placeholder (reader) ── */
+.removed-section-placeholder {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 1rem; padding: 3.5rem 1rem; text-align: center;
+  color: var(--muted); border: 1px dashed var(--border);
+  border-radius: var(--radius); background: var(--bg); margin-top: 0.5rem;
+}
+.removed-section-placeholder p { margin: 0; font-size: 1rem; }
+
+/* ── TOC item actions (remove/restore per chapter) ── */
+.toc-item { position: relative; }
+.toc-item-actions {
+  margin-inline-start: auto; flex-shrink: 0;
+  opacity: 0; transition: opacity 0.12s; display: flex; align-items: center;
+}
+.toc-item:hover .toc-item-actions { opacity: 1; }
+.toc-remove-btn {
+  background: none; border: none; cursor: pointer;
+  font-size: 0.82rem; padding: 0.1rem 0.25rem; line-height: 1;
+  color: var(--muted);
+}
+.toc-remove-btn:hover { color: var(--danger); }
+.toc-item.removed { color: var(--muted); text-decoration: line-through; }
+.toc-item.removed .toc-item-actions { opacity: 1; }
+
+@media (max-width: 600px) {
+  .toc-item-actions { opacity: 1; }
+}
+
 /* ── Settings modal ── */
 .modal-settings-box { max-width: 480px; }
 .settings-version {

@@ -85,7 +85,8 @@ SD.UI = (function () {
 
   // ── TOC ──
 
-  function renderToc(items, currentRef, annotatedRefs, onSelect) {
+  function renderToc(items, currentRef, annotatedRefs, removedRefs, handlers) {
+    const removed = removedRefs instanceof Set ? removedRefs : new Set();
     const tree = $('toc-tree');
     tree.innerHTML = '';
     let activeEl = null;
@@ -100,15 +101,62 @@ SD.UI = (function () {
       } else {
         const isActive = item.ref === currentRef;
         const hasAnn = annotatedRefs && annotatedRefs.has(item.ref);
+        const isRemoved = removed.has(item.ref);
         const el = document.createElement('div');
-        el.className = 'toc-item' + (isActive ? ' active' : '');
-        el.innerHTML = `<span class="toc-he">${esc(item.he)}</span>${hasAnn ? '<span class="toc-ann-dot"></span>' : ''}`;
-        el.addEventListener('click', () => onSelect(item.ref));
+        el.className = 'toc-item' + (isActive ? ' active' : '') + (isRemoved ? ' removed' : '');
+        el.addEventListener('click', () => handlers.onSelect(item.ref));
+
+        const textEl = document.createElement('span');
+        textEl.className = 'toc-he';
+        textEl.textContent = item.he;
+        el.appendChild(textEl);
+
+        if (hasAnn) {
+          const dot = document.createElement('span');
+          dot.className = 'toc-ann-dot';
+          el.appendChild(dot);
+        }
+
+        const acts = document.createElement('div');
+        acts.className = 'toc-item-actions';
+        if (isRemoved) {
+          const btn = document.createElement('button');
+          btn.className = 'link-btn';
+          btn.textContent = 'שחזור';
+          btn.title = 'שחזור הפרק';
+          btn.addEventListener('click', e => { e.stopPropagation(); handlers.onRestore(item.ref); });
+          acts.appendChild(btn);
+        } else {
+          const btn = document.createElement('button');
+          btn.className = 'toc-remove-btn';
+          btn.textContent = '🚫';
+          btn.title = 'הסרת הפרק';
+          btn.addEventListener('click', e => { e.stopPropagation(); handlers.onRemove(item.ref); });
+          acts.appendChild(btn);
+        }
+        el.appendChild(acts);
+
         tree.appendChild(el);
         if (isActive) activeEl = el;
       }
     });
     if (activeEl) setTimeout(() => activeEl.scrollIntoView({ block: 'center', behavior: 'smooth' }), 80);
+  }
+
+  function renderRemovedSection({ title, onRestore }) {
+    const content = $('reader-content');
+    content.innerHTML = '';
+    const placeholder = document.createElement('div');
+    placeholder.className = 'removed-section-placeholder';
+    const label = document.createElement('p');
+    label.textContent = `"${title}" — פרק זה הוסר מהסידור`;
+    const btn = document.createElement('button');
+    btn.className = 'primary';
+    btn.textContent = '↩ שחזור הפרק';
+    btn.addEventListener('click', onRestore);
+    placeholder.appendChild(label);
+    placeholder.appendChild(btn);
+    content.appendChild(placeholder);
   }
 
   // ── Reader ──
@@ -622,7 +670,7 @@ SD.UI = (function () {
     $, showScreen, toast, setHeader, setViewMode, setEnVisible,
     renderBookCategories, renderMySiddurs,
     renderToc,
-    renderReader, updateSectionNav,
+    renderReader, renderRemovedSection, updateSectionNav,
     renderSettings,
     openInsertionEditor, closeInsertionEditor, getInsertionEditorData, addImageToEditor, getInsertionEditorCallbacks,
     openImageEditor, rotateImageEditor, resetCrop, confirmImageEditor, closeImageEditor, getImageEditorState,
