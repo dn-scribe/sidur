@@ -237,8 +237,8 @@ SD.UI = (function () {
 
     const addAfterBtn = document.createElement('button');
     addAfterBtn.className = 'secondary';
-    addAfterBtn.textContent = '+ הערה אחרי';
-    addAfterBtn.addEventListener('click', () => handlers.onAddInsertion(index + 1));
+    addAfterBtn.textContent = '+ הערה';
+    addAfterBtn.addEventListener('click', () => handlers.onAddInsertion(index));
     acts.appendChild(addAfterBtn);
 
     div.appendChild(acts);

@@ -245,10 +245,10 @@ body.wide-view .reader-content > .add-insertion-btn { display: none; }
 .insertion-title { font-weight: 700; font-size: 1rem; color: var(--accent-dark); margin-bottom: 0.25rem; }
 .insertion-text { font-size: 0.95rem; line-height: 1.65; white-space: pre-wrap; overflow-wrap: break-word; }
 
-.insertion-images-display { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.45rem; }
-.ins-img-wrap { position: relative; display: inline-block; }
+.insertion-images-display { display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.45rem; }
+.ins-img-wrap { position: relative; display: block; width: 100%; }
 .ins-img-wrap img {
-  max-width: 180px; max-height: 180px;
+  width: 100%; height: auto;
   border-radius: 6px; border: 1px solid var(--border);
   display: block; cursor: pointer;
 }
@@ -298,7 +298,8 @@ body.wide-view .reader-content > .add-insertion-btn { display: none; }
 
 /* Insertion modal images editor */
 .insertion-images-editor { display: flex; flex-wrap: wrap; gap: 0.5rem; min-height: 0; }
-.insertion-images-editor .ins-img-wrap img { max-width: 100px; max-height: 100px; }
+.insertion-images-editor .ins-img-wrap { display: inline-block; width: auto; }
+.insertion-images-editor .ins-img-wrap img { width: auto; max-width: 100px; max-height: 100px; }
 .insertion-images-editor .ins-img-del { opacity: 1; }
 
 /* ── Toast ── */
