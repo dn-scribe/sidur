@@ -284,7 +284,7 @@ SD.UI = (function () {
     const heEl = document.createElement('div');
     heEl.className = 'para-he';
     if (editedText !== null) {
-      heEl.textContent = editedText;
+      heEl.innerHTML = esc(editedText).replace(/\n/g, '<br>');
     } else {
       heEl.innerHTML = heText || '';
     }
