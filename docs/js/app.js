@@ -26,7 +26,14 @@ SD.App = (function () {
     wireEvents();
     await Storage.migrateFromLocalStorage();
     siddurs = await Storage.loadSiddurs();
-    renderBooksScreen();
+    const lastId = localStorage.getItem('sd.lastSiddurId');
+    const last = lastId && siddurs.find(s => s.id === lastId);
+    if (last) {
+      currentSiddur = last;
+      openToc(last);
+    } else {
+      renderBooksScreen();
+    }
   }
 
   // ── Annotation helpers ──
@@ -107,6 +114,7 @@ SD.App = (function () {
   }
 
   async function openToc(siddur, index) {
+    localStorage.setItem('sd.lastSiddurId', siddur.id);
     try {
       if (!index) {
         UI.toast('טוען תוכן עניינים...', '');
@@ -311,6 +319,7 @@ SD.App = (function () {
   async function onDeleteSiddur(siddur) {
     if (!confirm(`למחוק את "${siddur.heTitle || siddur.title}" מהרשימה?`)) return;
     siddurs = siddurs.filter(s => s.id !== siddur.id);
+    if (localStorage.getItem('sd.lastSiddurId') === siddur.id) localStorage.removeItem('sd.lastSiddurId');
     await Storage.deleteSiddur(siddur.id);
     UI.renderMySiddurs(siddurs, {
       onOpen: (s) => { currentSiddur = s; openToc(s); },
