@@ -1,8 +1,13 @@
 window.SD = window.SD || {};
 
 SD.Version = {
-  current: '1.5.0',
+  current: '1.6.0',
   changelog: [
+    {
+      version: '1.6.0',
+      date: 'ספטמבר 2026',
+      items: ['פתיחה אוטומטית של הסידור האחרון בהפעלה'],
+    },
     {
       version: '1.5.0',
       date: 'ספטמבר 2026',
