@@ -58,6 +58,7 @@
     <div class="reader-info">
       <h2 id="reader-section-title" class="reader-section-title"></h2>
       <button id="btn-edit-section-title" class="icon-btn" title="עריכת כותרת הפרק">✏</button>
+      <button id="btn-remove-section" class="icon-btn" title="הסרת פרק מהסידור">🚫</button>
     </div>
     <div class="reader-nav reader-nav-top">
       <button id="btn-prev-section" class="nav-btn secondary" disabled>← הקודם</button>
@@ -129,6 +130,9 @@
     </label>
     <label class="field-label">
       טקסט
+      <div class="editor-toolbar">
+        <button type="button" id="btn-insertion-bold" class="toolbar-btn"><strong>B</strong></button>
+      </div>
       <textarea id="insertion-text-input" rows="5" placeholder="טקסט הערה..."></textarea>
     </label>
     <div id="insertion-images-editor" class="insertion-images-editor"></div>

@@ -99,11 +99,11 @@ SD.UI = (function () {
         el.textContent = item.he;
         tree.appendChild(el);
       } else {
+        if (removed.has(item.ref)) return; // removed sections are hidden from TOC
         const isActive = item.ref === currentRef;
         const hasAnn = annotatedRefs && annotatedRefs.has(item.ref);
-        const isRemoved = removed.has(item.ref);
         const el = document.createElement('div');
-        el.className = 'toc-item' + (isActive ? ' active' : '') + (isRemoved ? ' removed' : '');
+        el.className = 'toc-item' + (isActive ? ' active' : '');
         el.addEventListener('click', () => handlers.onSelect(item.ref));
 
         const textEl = document.createElement('span');
@@ -116,25 +116,6 @@ SD.UI = (function () {
           dot.className = 'toc-ann-dot';
           el.appendChild(dot);
         }
-
-        const acts = document.createElement('div');
-        acts.className = 'toc-item-actions';
-        if (isRemoved) {
-          const btn = document.createElement('button');
-          btn.className = 'link-btn';
-          btn.textContent = 'שחזור';
-          btn.title = 'שחזור הפרק';
-          btn.addEventListener('click', e => { e.stopPropagation(); handlers.onRestore(item.ref); });
-          acts.appendChild(btn);
-        } else {
-          const btn = document.createElement('button');
-          btn.className = 'toc-remove-btn';
-          btn.textContent = '🚫';
-          btn.title = 'הסרת הפרק';
-          btn.addEventListener('click', e => { e.stopPropagation(); handlers.onRemove(item.ref); });
-          acts.appendChild(btn);
-        }
-        el.appendChild(acts);
 
         tree.appendChild(el);
         if (isActive) activeEl = el;
@@ -284,7 +265,7 @@ SD.UI = (function () {
     const heEl = document.createElement('div');
     heEl.className = 'para-he';
     if (editedText !== null) {
-      heEl.innerHTML = esc(editedText).replace(/\n/g, '<br>');
+      heEl.innerHTML = esc(editedText).replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>');
     } else {
       heEl.innerHTML = heText || '';
     }
@@ -340,6 +321,16 @@ SD.UI = (function () {
     const editArea = document.createElement('div');
     editArea.className = 'para-edit-area';
 
+    const toolbar = document.createElement('div');
+    toolbar.className = 'editor-toolbar';
+    const boldBtn = document.createElement('button');
+    boldBtn.type = 'button';
+    boldBtn.className = 'toolbar-btn';
+    boldBtn.innerHTML = '<strong>B</strong>';
+    boldBtn.addEventListener('click', () => applyBold(ta));
+    toolbar.appendChild(boldBtn);
+    editArea.appendChild(toolbar);
+
     const ta = document.createElement('textarea');
     ta.value = currentText;
     ta.rows = 5;
@@ -372,6 +363,18 @@ SD.UI = (function () {
     ta.select();
   }
 
+  function applyBold(textarea) {
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const val = textarea.value;
+    const selected = val.slice(start, end);
+    const replacement = selected ? `**${selected}**` : '****';
+    textarea.value = val.slice(0, start) + replacement + val.slice(end);
+    const cursor = selected ? start + 2 + selected.length + 2 : start + 2;
+    textarea.setSelectionRange(cursor, cursor);
+    textarea.focus();
+  }
+
   function stripHtml(html) {
     const tmp = document.createElement('div');
     tmp.innerHTML = html || '';
@@ -392,7 +395,7 @@ SD.UI = (function () {
     if (ins.text) {
       const b = document.createElement('div');
       b.className = 'insertion-text';
-      b.textContent = ins.text;
+      b.innerHTML = esc(ins.text).replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>');
       div.appendChild(b);
     }
     if (ins.images?.length) {
@@ -631,9 +634,76 @@ SD.UI = (function () {
 
   // ── Settings modal ──
 
-  function renderSettings(container, { current, changelog }) {
+  function renderSettings(container, { current, changelog }, opts = {}) {
+    const { siddurs = [], currentSiddurId, removedItems = [], onRestoreSection, onSwitchSiddur, onGoToBookshelf } = opts;
     container.innerHTML = '';
 
+    // My Siddurs
+    const siddurLabel = document.createElement('div');
+    siddurLabel.className = 'settings-section-title';
+    siddurLabel.textContent = 'הסידורים שלי';
+    container.appendChild(siddurLabel);
+
+    if (siddurs.length === 0) {
+      const empty = document.createElement('p');
+      empty.className = 'muted';
+      empty.textContent = 'אין סידורים שמורים.';
+      container.appendChild(empty);
+    } else {
+      const siddurList = document.createElement('div');
+      siddurList.className = 'settings-siddur-list';
+      siddurs.forEach(s => {
+        const row = document.createElement('div');
+        row.className = 'settings-siddur-row' + (s.id === currentSiddurId ? ' active' : '');
+        const name = document.createElement('span');
+        name.textContent = s.heTitle || s.title;
+        row.appendChild(name);
+        if (s.id !== currentSiddurId && onSwitchSiddur) {
+          const btn = document.createElement('button');
+          btn.className = 'link-btn';
+          btn.textContent = 'פתיחה';
+          btn.addEventListener('click', () => onSwitchSiddur(s));
+          row.appendChild(btn);
+        }
+        siddurList.appendChild(row);
+      });
+      container.appendChild(siddurList);
+    }
+    if (onGoToBookshelf) {
+      const addBtn = document.createElement('button');
+      addBtn.className = 'secondary settings-add-siddur-btn';
+      addBtn.textContent = '+ הוספת סידור';
+      addBtn.addEventListener('click', onGoToBookshelf);
+      container.appendChild(addBtn);
+    }
+
+    // Removed sections
+    if (removedItems.length > 0) {
+      const removedLabel = document.createElement('div');
+      removedLabel.className = 'settings-section-title';
+      removedLabel.textContent = 'פרקים שהוסרו';
+      container.appendChild(removedLabel);
+      const removedList = document.createElement('div');
+      removedList.className = 'settings-removed-list';
+      removedItems.forEach(({ ref, label }) => {
+        const row = document.createElement('div');
+        row.className = 'settings-removed-row';
+        const name = document.createElement('span');
+        name.textContent = label;
+        row.appendChild(name);
+        if (onRestoreSection) {
+          const btn = document.createElement('button');
+          btn.className = 'link-btn';
+          btn.textContent = '↩ שחזור';
+          btn.addEventListener('click', () => onRestoreSection(ref));
+          row.appendChild(btn);
+        }
+        removedList.appendChild(row);
+      });
+      container.appendChild(removedList);
+    }
+
+    // Version
     const verRow = document.createElement('div');
     verRow.className = 'settings-version';
     verRow.innerHTML = `<span class="settings-version-label">גרסה</span><span class="settings-version-badge">${esc(current)}</span>`;
@@ -672,6 +742,7 @@ SD.UI = (function () {
     renderToc,
     renderReader, renderRemovedSection, updateSectionNav,
     renderSettings,
+    applyBold,
     openInsertionEditor, closeInsertionEditor, getInsertionEditorData, addImageToEditor, getInsertionEditorCallbacks,
     openImageEditor, rotateImageEditor, resetCrop, confirmImageEditor, closeImageEditor, getImageEditorState,
     wireCropCanvas,

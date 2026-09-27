@@ -348,12 +348,19 @@ body.wide-view .wide-row > .removed-group { grid-column: 1 / -1; grid-row: 1; }
   color: var(--muted);
 }
 .toc-remove-btn:hover { color: var(--danger); }
-.toc-item.removed { color: var(--muted); text-decoration: line-through; }
-.toc-item.removed .toc-item-actions { opacity: 1; }
 
 @media (max-width: 600px) {
   .toc-item-actions { opacity: 1; }
 }
+
+/* ── Bold toolbar ── */
+.editor-toolbar { display: flex; gap: 0.3rem; margin-bottom: 0.25rem; }
+.toolbar-btn {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 4px; cursor: pointer; padding: 0.15rem 0.55rem;
+  font-size: 0.9rem; line-height: 1.4;
+}
+.toolbar-btn:hover { border-color: var(--accent); color: var(--accent); }
 
 /* ── Settings modal ── */
 .modal-settings-box { max-width: 480px; }
@@ -371,6 +378,16 @@ body.wide-view .wide-row > .removed-group { grid-column: 1 / -1; grid-row: 1; }
   font-size: 0.73rem; font-weight: 700; letter-spacing: 0.05em;
   color: var(--muted); text-transform: uppercase; margin: 0.75rem 0 0.4rem;
 }
+.settings-siddur-list, .settings-removed-list {
+  display: flex; flex-direction: column; gap: 0.3rem; margin-bottom: 0.5rem;
+}
+.settings-siddur-row, .settings-removed-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0.4rem 0.6rem; border-radius: var(--radius);
+  background: var(--surface); font-size: 0.9rem;
+}
+.settings-siddur-row.active { font-weight: 700; }
+.settings-add-siddur-btn { margin-bottom: 0.75rem; font-size: 0.88rem; }
 .changelog-list { display: flex; flex-direction: column; gap: 0.5rem; }
 .changelog-entry {
   border: 1px solid var(--border); border-radius: var(--radius);

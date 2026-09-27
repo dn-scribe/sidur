@@ -175,6 +175,7 @@ SD.App = (function () {
     UI.setHeader({ title: shortTitle, showBack: true, showViewToggle: !isRemoved, showToc: true, showEnToggle: !isRemoved });
     UI.$('reader-section-title').textContent = ann.customTitle || shortTitle;
     UI.updateSectionNav(currentSection.prev, currentSection.next);
+    $('btn-remove-section').hidden = isRemoved;
 
     if (isRemoved) {
       UI.renderRemovedSection({
@@ -204,7 +205,9 @@ SD.App = (function () {
     }
 
     requestAnimationFrame(() => {
-      if (scrollTo === 'bottom') {
+      if (typeof scrollTo === 'number') {
+        window.scrollTo({ top: scrollTo });
+      } else if (scrollTo === 'bottom') {
         window.scrollTo({ top: document.body.scrollHeight });
       } else {
         window.scrollTo({ top: 0 });
@@ -261,16 +264,18 @@ SD.App = (function () {
   async function saveParagraphEdit(index, text) {
     currentTextEdits = currentTextEdits || {};
     currentTextEdits[index] = text;
+    const savedY = window.scrollY;
     try { await persistTextEdits(); } catch (e) { UI.toast(e.message, 'error'); return; }
-    renderReader();
+    renderReader(savedY);
     UI.toast('נשמר', 'success');
   }
 
   async function restoreParagraph(index) {
     currentTextEdits = currentTextEdits || {};
     delete currentTextEdits[index];
+    const savedY = window.scrollY;
     await persistTextEdits();
-    renderReader();
+    renderReader(savedY);
     UI.toast('הטקסט המקורי שוחזר', '');
   }
 
@@ -281,16 +286,18 @@ SD.App = (function () {
       ann.removedParagraphs.push(index);
       ann.removedParagraphs.sort((a, b) => a - b);
     }
+    const savedY = window.scrollY;
     await persistAnnotation();
-    renderReader();
+    renderReader(savedY);
   }
 
   async function restoreRemovedGroup(indices) {
     const ann = ensureAnnotation();
     const set = new Set(indices);
     ann.removedParagraphs = (ann.removedParagraphs || []).filter(i => !set.has(i));
+    const savedY = window.scrollY;
     await persistAnnotation();
-    renderReader();
+    renderReader(savedY);
   }
 
   async function removeSection(ref) {
@@ -393,10 +400,36 @@ SD.App = (function () {
     });
 
     $('btn-edit-section-title').addEventListener('click', editSectionTitle);
+    $('btn-remove-section').addEventListener('click', () => {
+      if (currentSection && currentSiddur) removeSection(currentSection.ref);
+    });
 
     // Settings
     $('btn-settings').addEventListener('click', () => {
-      UI.renderSettings($('settings-content'), SD.Version);
+      const removedItems = currentSiddur
+        ? (currentSiddur.removedSections || []).map(ref => {
+            const item = currentTocItems.find(i => i.ref === ref);
+            return { ref, label: item?.he || ref };
+          })
+        : [];
+      UI.renderSettings($('settings-content'), SD.Version, {
+        siddurs,
+        currentSiddurId: currentSiddur?.id,
+        removedItems,
+        onRestoreSection: async (ref) => {
+          $('modal-settings').hidden = true;
+          await restoreSection(ref);
+        },
+        onSwitchSiddur: (s) => {
+          $('modal-settings').hidden = true;
+          currentSiddur = s;
+          openToc(s);
+        },
+        onGoToBookshelf: () => {
+          $('modal-settings').hidden = true;
+          renderBooksScreen();
+        },
+      });
       $('modal-settings').hidden = false;
     });
     $('btn-close-settings').addEventListener('click', () => { $('modal-settings').hidden = true; });
@@ -424,6 +457,7 @@ SD.App = (function () {
     });
 
     // Insertion editor
+    $('btn-insertion-bold').addEventListener('click', () => UI.applyBold($('insertion-text-input')));
     $('btn-insertion-save').addEventListener('click', () => {
       const { onSave } = UI.getInsertionEditorCallbacks();
       if (onSave) onSave(UI.getInsertionEditorData());
