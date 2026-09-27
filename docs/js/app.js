@@ -72,6 +72,7 @@ SD.App = (function () {
       onDelete: onDeleteSiddur,
       onShortcutClick: (siddurId, ref) => navigateToShortcut(siddurId, ref),
       onShortcutDelete: (siddurId, shortcutId) => deleteShortcut(siddurId, shortcutId),
+      onShortcutRename: (siddurId, shortcutId, newLabel) => renameShortcut(siddurId, shortcutId, newLabel),
     });
   }
 
@@ -211,6 +212,7 @@ SD.App = (function () {
           onRemoveParagraphs: (indices) => removeParagraphs(indices),
           onRestoreRemovedGroup: (indices) => restoreRemovedGroup(indices),
           onMerge: (unitIdx) => doMerge(unitIdx),
+          onDemerge: (indices) => doDemerge(indices),
         },
       });
     }
@@ -353,6 +355,18 @@ SD.App = (function () {
     renderReader(savedY);
   }
 
+  async function doDemerge(groupIndices) {
+    const ann = ensureAnnotation();
+    ann.merges = ann.merges || [];
+    ann.mergeUndoStack = ann.mergeUndoStack || [];
+    ann.mergeUndoStack.push(JSON.parse(JSON.stringify(ann.merges)));
+    const groupSet = new Set(groupIndices);
+    ann.merges = ann.merges.filter(g => !g.some(i => groupSet.has(i)));
+    const savedY = window.scrollY;
+    await persistAnnotation();
+    renderReader(savedY);
+  }
+
   async function removeSection(ref) {
     if (!currentSiddur) return;
     currentSiddur.removedSections = currentSiddur.removedSections || [];
@@ -405,6 +419,16 @@ SD.App = (function () {
     const siddur = siddurs.find(s => s.id === siddurId);
     if (!siddur) return;
     siddur.shortcuts = (siddur.shortcuts || []).filter(s => s.id !== shortcutId);
+    await Storage.saveSiddur(siddur);
+    renderMySiddurstWithShortcuts();
+  }
+
+  async function renameShortcut(siddurId, shortcutId, newLabel) {
+    const siddur = siddurs.find(s => s.id === siddurId);
+    if (!siddur) return;
+    const sc = (siddur.shortcuts || []).find(s => s.id === shortcutId);
+    if (!sc) return;
+    sc.label = newLabel;
     await Storage.saveSiddur(siddur);
     renderMySiddurstWithShortcuts();
   }
