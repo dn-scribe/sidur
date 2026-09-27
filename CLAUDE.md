@@ -28,7 +28,12 @@ Skipping the sync leaves `main-yzocwp` diverged from `main` and triggers the sto
 
 ## Service worker cache
 
-Every release that changes any shell file (`app.js`, `ui.js`, `storage.js`, `api.js`, `style.css`, `sw.js`) **must** bump `CACHE_NAME` in `docs/sw.js` (e.g. `sidur-v5` → `sidur-v6`). Without this, users' browsers keep serving the old cached files and the new code never loads.
+**Every release — no exceptions — must bump `CACHE_NAME` in `docs/sw.js`** (e.g. `sidur-v7` → `sidur-v8`). This applies to every change to any shell file (`app.js`, `ui.js`, `storage.js`, `api.js`, `style.css`, `sw.js`, `index.html`). Without this bump, users' browsers keep serving the old cached files and the new code never loads.
+
+Pre-commit checklist:
+1. Bump `CACHE_NAME` in `docs/sw.js`
+2. Bump `SD.Version.current` in `docs/js/version.js`
+3. Add changelog entry
 
 ## Versioning
 
