@@ -68,17 +68,51 @@ SD.UI = (function () {
       const li = document.createElement('li');
       li.className = 'siddur-item';
       const shortRef = s.currentRef ? s.currentRef.split(',').slice(-2).map(p => p.trim()).join(' · ') : '';
-      li.innerHTML = `
-        <div class="siddur-item-info">
-          <span class="siddur-title">${esc(s.heTitle || s.title)}</span>
-          ${shortRef ? `<span class="siddur-ref">${esc(shortRef)}</span>` : ''}
-        </div>
-        <button class="secondary" style="font-size:0.82rem;padding:0.3rem 0.7rem;white-space:nowrap">פתיחה</button>
-        <button class="danger" style="font-size:0.82rem;padding:0.3rem 0.5rem">✕</button>
-      `;
-      li.querySelectorAll('button')[0].addEventListener('click', () => handlers.onOpen(s));
-      li.querySelectorAll('button')[1].addEventListener('click', () => handlers.onDelete(s));
-      li.querySelector('.siddur-item-info').addEventListener('click', () => handlers.onOpen(s));
+
+      const info = document.createElement('div');
+      info.className = 'siddur-item-info';
+      info.innerHTML = `<span class="siddur-title">${esc(s.heTitle || s.title)}</span>${shortRef ? `<span class="siddur-ref">${esc(shortRef)}</span>` : ''}`;
+      info.addEventListener('click', () => handlers.onOpen(s));
+
+      const openBtn = document.createElement('button');
+      openBtn.className = 'secondary';
+      openBtn.style.cssText = 'font-size:0.82rem;padding:0.3rem 0.7rem;white-space:nowrap';
+      openBtn.textContent = 'פתיחה';
+      openBtn.addEventListener('click', () => handlers.onOpen(s));
+
+      const delBtn = document.createElement('button');
+      delBtn.className = 'danger';
+      delBtn.style.cssText = 'font-size:0.82rem;padding:0.3rem 0.5rem';
+      delBtn.textContent = '✕';
+      delBtn.addEventListener('click', () => handlers.onDelete(s));
+
+      li.appendChild(info);
+      li.appendChild(openBtn);
+      li.appendChild(delBtn);
+
+      const shortcuts = s.shortcuts || [];
+      if (shortcuts.length > 0) {
+        const scRow = document.createElement('div');
+        scRow.className = 'siddur-shortcuts';
+        shortcuts.forEach(sc => {
+          const chip = document.createElement('span');
+          chip.className = 'shortcut-chip';
+          const label = document.createElement('span');
+          label.className = 'shortcut-chip-label';
+          label.textContent = '★ ' + sc.label;
+          label.addEventListener('click', () => handlers.onShortcutClick && handlers.onShortcutClick(s.id, sc.ref));
+          const del = document.createElement('button');
+          del.className = 'shortcut-chip-del';
+          del.textContent = '×';
+          del.title = 'מחיקת קיצור';
+          del.addEventListener('click', e => { e.stopPropagation(); handlers.onShortcutDelete && handlers.onShortcutDelete(s.id, sc.id); });
+          chip.appendChild(label);
+          chip.appendChild(del);
+          scRow.appendChild(chip);
+        });
+        li.appendChild(scRow);
+      }
+
       list.appendChild(li);
     });
   }

@@ -124,7 +124,7 @@ textarea { resize: vertical; }
 
 .siddur-list { list-style: none; padding: 0; margin: 0 0 0.75rem; display: flex; flex-direction: column; gap: 0.45rem; }
 .siddur-item {
-  display: flex; align-items: center; gap: 0.5rem;
+  display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;
   background: var(--surface); border: 1px solid var(--border);
   border-radius: var(--radius); padding: 0.65rem 0.9rem;
 }
@@ -132,6 +132,27 @@ textarea { resize: vertical; }
 .siddur-item-info:hover .siddur-title { color: var(--accent); }
 .siddur-title { font-weight: 600; font-size: 0.95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .siddur-ref { font-size: 0.75rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ── Shortcuts ── */
+.siddur-shortcuts {
+  width: 100%; display: flex; flex-wrap: wrap; gap: 0.3rem;
+  padding-top: 0.4rem; border-top: 1px solid var(--border); margin-top: 0.1rem;
+}
+.shortcut-chip {
+  display: inline-flex; align-items: center; gap: 0.2rem;
+  background: var(--accent-light); border: 1px solid var(--border);
+  border-radius: 20px; padding: 0.18rem 0.5rem 0.18rem 0.45rem;
+  font-size: 0.8rem; color: var(--accent-dark); cursor: default;
+}
+.shortcut-chip-label { cursor: pointer; }
+.shortcut-chip-label:hover { text-decoration: underline; }
+.shortcut-chip-del {
+  background: none; border: none; padding: 0; line-height: 1;
+  font-size: 0.9rem; cursor: pointer; color: var(--muted);
+  border-radius: 50%; width: 16px; height: 16px;
+  display: flex; align-items: center; justify-content: center;
+}
+.shortcut-chip-del:hover { background: var(--border); color: var(--danger); }
 
 /* ── TOC ── */
 .toc-header { margin-bottom: 0.75rem; }
