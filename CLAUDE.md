@@ -16,7 +16,7 @@ Vanilla JS PWA prayer book. Source lives in `docs/` (served via GitHub Pages at 
 
 ## Git workflow
 
-Development branch: **`main-yzocwp`**. Push there, open a PR into `main`, squash-merge, then immediately sync the branch back:
+Development branch: **`main-yzocwp`**. After implementing any user-visible change, always: push to the branch, open a PR into `main`, squash-merge, then immediately sync the branch back:
 
 ```bash
 git fetch origin main

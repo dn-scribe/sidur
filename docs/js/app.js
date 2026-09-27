@@ -61,12 +61,18 @@ SD.App = (function () {
     UI.showScreen('books');
     UI.setHeader({ title: '📖 סידור', showBack: false, showViewToggle: false, showToc: false, showEnToggle: false });
     UI.renderBookCategories(Api.getLiturgyBooks(), onSelectBook);
+    renderMySiddurstWithShortcuts();
+    filterBooks('');
+    updateStorageInfo();
+  }
+
+  function renderMySiddurstWithShortcuts() {
     UI.renderMySiddurs(siddurs, {
       onOpen: (s) => { currentSiddur = s; openToc(s); },
       onDelete: onDeleteSiddur,
+      onShortcutClick: (siddurId, ref) => navigateToShortcut(siddurId, ref),
+      onShortcutDelete: (siddurId, shortcutId) => deleteShortcut(siddurId, shortcutId),
     });
-    filterBooks('');
-    updateStorageInfo();
   }
 
   async function updateStorageInfo() {
@@ -177,6 +183,7 @@ SD.App = (function () {
     UI.$('reader-section-title').textContent = ann.customTitle || shortTitle;
     UI.updateSectionNav(currentSection.prev, currentSection.next);
     $('btn-remove-section').hidden = isRemoved;
+    $('btn-add-shortcut').hidden = isRemoved;
     $('btn-undo-merge').hidden = !(ann.mergeUndoStack?.length > 0);
 
     if (isRemoved) {
@@ -374,11 +381,45 @@ SD.App = (function () {
     siddurs = siddurs.filter(s => s.id !== siddur.id);
     if (localStorage.getItem('sd.lastSiddurId') === siddur.id) localStorage.removeItem('sd.lastSiddurId');
     await Storage.deleteSiddur(siddur.id);
-    UI.renderMySiddurs(siddurs, {
-      onOpen: (s) => { currentSiddur = s; openToc(s); },
-      onDelete: onDeleteSiddur,
-    });
+    renderMySiddurstWithShortcuts();
     UI.toast('הסידור הוסר מהרשימה', '');
+  }
+
+  // ── Shortcuts ──
+
+  async function addShortcut() {
+    if (!currentSiddur || !currentSection) return;
+    currentSiddur.shortcuts = currentSiddur.shortcuts || [];
+    const ref = currentSection.ref;
+    if (currentSiddur.shortcuts.some(s => s.ref === ref)) {
+      UI.toast('קיצור לפרק זה כבר קיים', '');
+      return;
+    }
+    const label = (currentAnnotation?.customTitle) || shortSectionTitle(currentSection.heRef || ref);
+    currentSiddur.shortcuts.push({ id: Storage.genId(), ref, label, createdAt: Date.now() });
+    await Storage.saveSiddur(currentSiddur);
+    UI.toast('קיצור נוסף', 'success');
+  }
+
+  async function deleteShortcut(siddurId, shortcutId) {
+    const siddur = siddurs.find(s => s.id === siddurId);
+    if (!siddur) return;
+    siddur.shortcuts = (siddur.shortcuts || []).filter(s => s.id !== shortcutId);
+    await Storage.saveSiddur(siddur);
+    renderMySiddurstWithShortcuts();
+  }
+
+  async function navigateToShortcut(siddurId, ref) {
+    const siddur = siddurs.find(s => s.id === siddurId);
+    if (!siddur) return;
+    currentSiddur = siddur;
+    localStorage.setItem('sd.lastSiddurId', siddur.id);
+    try {
+      const index = await Api.fetchBookIndex(siddur.title);
+      currentBookIndex = index;
+      currentTocItems = Api.flattenSchema(index.schema, '');
+    } catch { /* offline: back will go to books screen */ }
+    await openSection(ref, 'top');
   }
 
   // ── Image handling ──
@@ -446,6 +487,7 @@ SD.App = (function () {
     });
 
     $('btn-edit-section-title').addEventListener('click', editSectionTitle);
+    $('btn-add-shortcut').addEventListener('click', () => addShortcut());
     $('btn-undo-merge').addEventListener('click', () => undoMerge());
     $('btn-remove-section').addEventListener('click', () => {
       if (currentSection && currentSiddur) removeSection(currentSection.ref);
