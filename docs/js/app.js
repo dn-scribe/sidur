@@ -160,7 +160,8 @@ SD.App = (function () {
 
       renderReader(scrollTo);
     } catch (e) {
-      UI.toast('שגיאה: ' + e.message, 'error');
+      const msg = !navigator.onLine ? 'אין חיבור לאינטרנט — הפרק לא נמצא במטמון' : 'שגיאה: ' + e.message;
+      UI.toast(msg, 'error');
     }
   }
 
@@ -176,6 +177,7 @@ SD.App = (function () {
     UI.$('reader-section-title').textContent = ann.customTitle || shortTitle;
     UI.updateSectionNav(currentSection.prev, currentSection.next);
     $('btn-remove-section').hidden = isRemoved;
+    $('btn-undo-merge').hidden = !(ann.mergeUndoStack?.length > 0);
 
     if (isRemoved) {
       UI.renderRemovedSection({
@@ -199,7 +201,9 @@ SD.App = (function () {
           onEditParagraph: (index, text) => saveParagraphEdit(index, text),
           onRestoreParagraph: (index) => restoreParagraph(index),
           onRemoveParagraph: (index) => removeParagraph(index),
+          onRemoveParagraphs: (indices) => removeParagraphs(indices),
           onRestoreRemovedGroup: (indices) => restoreRemovedGroup(indices),
+          onMerge: (unitIdx) => doMerge(unitIdx),
         },
       });
     }
@@ -295,6 +299,48 @@ SD.App = (function () {
     const ann = ensureAnnotation();
     const set = new Set(indices);
     ann.removedParagraphs = (ann.removedParagraphs || []).filter(i => !set.has(i));
+    const savedY = window.scrollY;
+    await persistAnnotation();
+    renderReader(savedY);
+  }
+
+  async function removeParagraphs(indices) {
+    const ann = ensureAnnotation();
+    ann.removedParagraphs = ann.removedParagraphs || [];
+    indices.forEach(i => { if (!ann.removedParagraphs.includes(i)) ann.removedParagraphs.push(i); });
+    ann.removedParagraphs.sort((a, b) => a - b);
+    const savedY = window.scrollY;
+    await persistAnnotation();
+    renderReader(savedY);
+  }
+
+  async function doMerge(unitIdx) {
+    const ann = ensureAnnotation();
+    ann.merges = ann.merges || [];
+    ann.mergeUndoStack = ann.mergeUndoStack || [];
+    const allItems = UI.computeDisplayUnits(
+      currentSection.he.length,
+      ann.merges,
+      new Set(ann.removedParagraphs || [])
+    );
+    const unitItems = allItems.filter(it => it.type === 'unit');
+    if (unitIdx <= 0 || unitIdx >= unitItems.length) return;
+    const prevUnit = unitItems[unitIdx - 1];
+    const currUnit = unitItems[unitIdx];
+    ann.mergeUndoStack.push(JSON.parse(JSON.stringify(ann.merges)));
+    const allAffected = new Set([...prevUnit.indices, ...currUnit.indices]);
+    ann.merges = ann.merges.filter(g => !g.some(i => allAffected.has(i)));
+    ann.merges.push([...prevUnit.indices, ...currUnit.indices].sort((a, b) => a - b));
+    const savedY = window.scrollY;
+    await persistAnnotation();
+    renderReader(savedY);
+  }
+
+  async function undoMerge() {
+    const ann = ensureAnnotation();
+    ann.mergeUndoStack = ann.mergeUndoStack || [];
+    if (ann.mergeUndoStack.length === 0) return;
+    ann.merges = ann.mergeUndoStack.pop();
     const savedY = window.scrollY;
     await persistAnnotation();
     renderReader(savedY);
@@ -400,6 +446,7 @@ SD.App = (function () {
     });
 
     $('btn-edit-section-title').addEventListener('click', editSectionTitle);
+    $('btn-undo-merge').addEventListener('click', () => undoMerge());
     $('btn-remove-section').addEventListener('click', () => {
       if (currentSection && currentSiddur) removeSection(currentSection.ref);
     });

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'sidur-v6';
+const CACHE_NAME = 'sidur-v7';
 
 const SHELL = [
   '/sidur/',
@@ -36,16 +36,19 @@ self.addEventListener('fetch', event => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // Sefaria API — cache-first, update in background
+  // Sefaria API — stale-while-revalidate
   if (url.hostname === 'www.sefaria.org') {
     event.respondWith(
       caches.open(CACHE_NAME).then(cache =>
         cache.match(request).then(cached => {
-          const network = fetch(request).then(res => {
+          if (cached) {
+            fetch(request).then(res => { if (res.ok) cache.put(request, res.clone()); }).catch(() => {});
+            return cached;
+          }
+          return fetch(request).then(res => {
             if (res.ok) cache.put(request, res.clone());
             return res;
-          }).catch(() => null);
-          return cached || network;
+          });
         })
       )
     );
