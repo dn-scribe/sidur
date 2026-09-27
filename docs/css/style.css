@@ -174,7 +174,7 @@ textarea { resize: vertical; }
 .reader-nav-bottom { margin-top: 0.75rem; margin-bottom: 0; }
 .nav-btn { flex: 1; max-width: 160px; }
 
-.reader-content { display: flex; flex-direction: column; gap: 0.45rem; }
+.reader-content { display: flex; flex-direction: column; gap: 0.2rem; }
 
 /* ── Wide view ── */
 body.wide-view .reader-content { display: block; }
@@ -194,7 +194,7 @@ body.wide-view .wide-row .ann-col    { grid-column: 2 / 3; grid-row: 1; display:
 /* ── Paragraph ── */
 .para-row {
   background: var(--surface); border: 1px solid var(--border);
-  border-radius: var(--radius); padding: 0.75rem 1rem;
+  border-radius: var(--radius); padding: 0.55rem 0.75rem;
   position: relative;
 }
 .para-index { font-size: 0.68rem; color: var(--muted); margin-bottom: 0.2rem; user-select: none; }
@@ -215,6 +215,29 @@ body.hide-en .para-en { display: none; }
 }
 .para-row:hover .para-actions { opacity: 1; }
 .para-actions button { font-size: 0.76rem; padding: 0.22rem 0.5rem; }
+
+/* ── Paragraph top area (insertions + add buttons at top of cell) ── */
+.para-top-area {
+  display: flex; flex-direction: column; gap: 0.18rem;
+  margin-bottom: 0.35rem;
+}
+.para-top-area .add-insertion-btn { opacity: 0.25; }
+.para-row:hover .para-top-area .add-insertion-btn { opacity: 0.7; }
+.para-top-area .add-insertion-btn:hover { opacity: 1 !important; }
+/* Hide the top area in wide view — insertions are in ann-col/between-area */
+body.wide-view .para-row .para-top-area { display: none; }
+
+/* ── After-last between area ── */
+.para-after-last {
+  display: flex; flex-direction: column; gap: 0.18rem; margin-top: 0.1rem;
+}
+.para-after-last .add-insertion-btn { opacity: 0.25; }
+.para-after-last:hover .add-insertion-btn { opacity: 0.8; }
+
+/* ── Merged paragraph ── */
+.para-merged { border-color: var(--accent-light); }
+.merge-sep { border: none; border-top: 1px dashed var(--border); margin: 0.5rem 0; }
+.para-merged .para-index::after { content: " ⊞"; color: var(--muted); font-size: 0.75em; }
 
 /* ── Add-insertion button ── */
 .add-insertion-btn {

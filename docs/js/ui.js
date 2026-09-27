@@ -142,6 +142,40 @@ SD.UI = (function () {
 
   // ── Reader ──
 
+  function computeDisplayUnits(count, merges, removed) {
+    const removedSet = removed instanceof Set ? removed : new Set(removed || []);
+    const mergeGroups = new Map();
+    const inMerge = new Set();
+    (merges || []).forEach(group => {
+      const sorted = [...group].sort((a, b) => a - b);
+      mergeGroups.set(sorted[0], sorted);
+      sorted.forEach(i => inMerge.add(i));
+    });
+    const items = [];
+    let visIdx = 0;
+    let i = 0;
+    while (i < count) {
+      if (removedSet.has(i)) {
+        let j = i;
+        while (j + 1 < count && removedSet.has(j + 1)) j++;
+        const indices = [];
+        for (let k = i; k <= j; k++) indices.push(k);
+        items.push({ type: 'removed', indices });
+        i = j + 1;
+      } else if (mergeGroups.has(i)) {
+        const group = mergeGroups.get(i);
+        items.push({ type: 'unit', indices: group, unitIdx: visIdx++ });
+        i = group[group.length - 1] + 1;
+      } else if (inMerge.has(i)) {
+        i++;
+      } else {
+        items.push({ type: 'unit', indices: [i], unitIdx: visIdx++ });
+        i++;
+      }
+    }
+    return items;
+  }
+
   function renderReader({ sectionData, annotations, textEdits, viewMode, showEn, title, handlers }) {
     const content = $('reader-content');
     content.innerHTML = '';
@@ -149,7 +183,7 @@ SD.UI = (function () {
     setViewMode(viewMode);
     setEnVisible(showEn);
 
-    const ann = annotations || { customTitle: null, insertions: [], removedParagraphs: [] };
+    const ann = annotations || { customTitle: null, insertions: [], removedParagraphs: [], merges: [] };
     const edits = textEdits || {};
     const paragraphs = sectionData.he;
     const isWide = viewMode === 'wide';
@@ -163,15 +197,12 @@ SD.UI = (function () {
       content.appendChild(titleEl);
     }
 
-    let pos = 0;
-    while (pos <= maxPos) {
-      // Removed paragraph group
-      if (pos < paragraphs.length && removed.has(pos)) {
-        let groupEnd = pos;
-        while (groupEnd + 1 < paragraphs.length && removed.has(groupEnd + 1)) groupEnd++;
-        const indices = [];
-        for (let i = pos; i <= groupEnd; i++) indices.push(i);
-        const placeholder = renderRemovedGroup(indices, handlers);
+    const displayItems = computeDisplayUnits(maxPos, ann.merges || [], removed);
+    const totalVisibleUnits = displayItems.filter(it => it.type === 'unit').length;
+
+    displayItems.forEach(item => {
+      if (item.type === 'removed') {
+        const placeholder = renderRemovedGroup(item.indices, handlers);
         if (isWide) {
           const row = document.createElement('div');
           row.className = 'wide-row';
@@ -180,45 +211,45 @@ SD.UI = (function () {
         } else {
           content.appendChild(placeholder);
         }
-        pos = groupEnd + 1;
-        continue;
+        return;
       }
 
-      const allIns = (ann.insertions || []).filter(ins => ins.beforeParagraph === pos);
+      const firstIdx = item.indices[0];
+      const allIns = (ann.insertions || []).filter(ins => ins.beforeParagraph === firstIdx);
       const betweenIns = allIns.filter(ins => ins.type === 'between');
-      // existing insertions without a type field are treated as inline
       const inlineIns = allIns.filter(ins => ins.type !== 'between');
 
       if (isWide) {
-        // Full-width between-area always sits between wide-rows
-        content.appendChild(renderBetweenArea(pos, betweenIns, handlers));
-        if (pos < paragraphs.length) {
-          const row = document.createElement('div');
-          row.className = 'wide-row';
-          const annCol = document.createElement('div');
-          annCol.className = 'ann-col';
-          inlineIns.forEach(ins => annCol.appendChild(renderInsertionBlock(ins, handlers)));
-          annCol.appendChild(makeAddBtn(pos, handlers, 'inline'));
-          const enText = sectionData.text?.[pos] || '';
-          const editedText = edits[pos] ?? null;
-          row.appendChild(annCol);
-          row.appendChild(renderParagraph(pos, paragraphs[pos], enText, editedText, handlers));
-          content.appendChild(row);
-        }
+        content.appendChild(renderBetweenArea(firstIdx, betweenIns, handlers));
+        const row = document.createElement('div');
+        row.className = 'wide-row';
+        const annCol = document.createElement('div');
+        annCol.className = 'ann-col';
+        inlineIns.forEach(ins => annCol.appendChild(renderInsertionBlock(ins, handlers)));
+        annCol.appendChild(makeAddBtn(firstIdx, handlers, 'inline'));
+        row.appendChild(annCol);
+        row.appendChild(renderParagraph(item.indices, paragraphs, sectionData.text, edits, handlers, {
+          unitIdx: item.unitIdx, totalUnits: totalVisibleUnits,
+        }));
+        content.appendChild(row);
       } else {
-        // Normal view: between insertions first (they sit in the gap), then inline
-        betweenIns.forEach(ins => content.appendChild(renderInsertionBlock(ins, handlers)));
-        content.appendChild(makeAddBtn(pos, handlers, 'between'));
-        inlineIns.forEach(ins => content.appendChild(renderInsertionBlock(ins, handlers)));
-        if (pos < paragraphs.length) {
-          const enText = sectionData.text?.[pos] || '';
-          const editedText = edits[pos] ?? null;
-          content.appendChild(renderParagraph(pos, paragraphs[pos], enText, editedText, handlers));
-        }
+        content.appendChild(renderParagraph(item.indices, paragraphs, sectionData.text, edits, handlers, {
+          betweenIns, inlineIns, unitIdx: item.unitIdx, totalUnits: totalVisibleUnits,
+        }));
       }
-      pos++;
+    });
+
+    // After-last: between insertions for pos === maxPos
+    const lastIns = (ann.insertions || []).filter(ins => ins.beforeParagraph === maxPos && ins.type === 'between');
+    if (isWide) {
+      content.appendChild(renderBetweenArea(maxPos, lastIns, handlers));
+    } else {
+      const afterArea = document.createElement('div');
+      afterArea.className = 'para-after-last';
+      lastIns.forEach(ins => afterArea.appendChild(renderInsertionBlock(ins, handlers)));
+      afterArea.appendChild(makeAddBtn(maxPos, handlers, 'between'));
+      content.appendChild(afterArea);
     }
-    // No post-loop needed: the between-area for pos===maxPos is rendered above
   }
 
   function renderRemovedGroup(indices, handlers) {
@@ -252,25 +283,42 @@ SD.UI = (function () {
     return div;
   }
 
-  function renderParagraph(index, heText, enText, editedText, handlers) {
+  function renderParagraph(unitIndices, allParagraphs, allTexts, allEdits, handlers, opts) {
+    const { betweenIns = [], inlineIns = [], unitIdx = 0, totalUnits = 1 } = opts || {};
+    const firstIndex = unitIndices[0];
+    const isMerged = unitIndices.length > 1;
+    const editedText = (allEdits || {})[firstIndex] ?? null;
+
     const div = document.createElement('div');
-    div.className = 'para-row' + (editedText !== null ? ' edited' : '');
-    div.dataset.index = index;
+    div.className = 'para-row' + (editedText !== null ? ' edited' : '') + (isMerged ? ' para-merged' : '');
+    div.dataset.index = firstIndex;
+
+    // Top area: insertions + add buttons (hidden in wide view via CSS)
+    const topArea = document.createElement('div');
+    topArea.className = 'para-top-area';
+    betweenIns.forEach(ins => topArea.appendChild(renderInsertionBlock(ins, handlers)));
+    topArea.appendChild(makeAddBtn(firstIndex, handlers, 'between'));
+    inlineIns.forEach(ins => topArea.appendChild(renderInsertionBlock(ins, handlers)));
+    topArea.appendChild(makeAddBtn(firstIndex, handlers, 'inline'));
+    div.appendChild(topArea);
 
     const idxEl = document.createElement('div');
     idxEl.className = 'para-index';
-    idxEl.textContent = index + 1;
+    idxEl.textContent = isMerged ? unitIndices.map(i => i + 1).join('–') : firstIndex + 1;
     div.appendChild(idxEl);
 
     const heEl = document.createElement('div');
     heEl.className = 'para-he';
     if (editedText !== null) {
       heEl.innerHTML = esc(editedText).replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>');
+    } else if (isMerged) {
+      heEl.innerHTML = unitIndices.map(i => allParagraphs[i] || '').join('<hr class="merge-sep">');
     } else {
-      heEl.innerHTML = heText || '';
+      heEl.innerHTML = allParagraphs[firstIndex] || '';
     }
     div.appendChild(heEl);
 
+    const enText = (allTexts || [])[firstIndex] || '';
     if (enText) {
       const enEl = document.createElement('div');
       enEl.className = 'para-en';
@@ -278,35 +326,44 @@ SD.UI = (function () {
       div.appendChild(enEl);
     }
 
-    // Paragraph actions
     const acts = document.createElement('div');
     acts.className = 'para-actions';
 
-    const editBtn = document.createElement('button');
-    editBtn.className = 'secondary';
-    editBtn.textContent = '✏ עריכת טקסט';
-    editBtn.addEventListener('click', () => enterParaEditMode(div, index, editedText !== null ? editedText : stripHtml(heText), handlers));
-    acts.appendChild(editBtn);
+    if (!isMerged) {
+      const editBtn = document.createElement('button');
+      editBtn.className = 'secondary';
+      editBtn.textContent = '✏ עריכת טקסט';
+      editBtn.addEventListener('click', () => enterParaEditMode(div, firstIndex, editedText !== null ? editedText : stripHtml(allParagraphs[firstIndex] || ''), handlers));
+      acts.appendChild(editBtn);
 
-    if (editedText !== null) {
-      const restoreBtn = document.createElement('button');
-      restoreBtn.className = 'link-btn';
-      restoreBtn.textContent = '↩ מקורי';
-      restoreBtn.addEventListener('click', () => handlers.onRestoreParagraph(index));
-      acts.appendChild(restoreBtn);
+      if (editedText !== null) {
+        const restoreBtn = document.createElement('button');
+        restoreBtn.className = 'link-btn';
+        restoreBtn.textContent = '↩ מקורי';
+        restoreBtn.addEventListener('click', () => handlers.onRestoreParagraph(firstIndex));
+        acts.appendChild(restoreBtn);
+      }
     }
-
-    const addAfterBtn = document.createElement('button');
-    addAfterBtn.className = 'secondary';
-    addAfterBtn.textContent = '+ הערה';
-    addAfterBtn.addEventListener('click', () => handlers.onAddInsertion(index));
-    acts.appendChild(addAfterBtn);
 
     const removeBtn = document.createElement('button');
     removeBtn.className = 'secondary';
     removeBtn.textContent = '🚫 הסרה';
-    removeBtn.addEventListener('click', () => handlers.onRemoveParagraph(index));
+    removeBtn.addEventListener('click', () => {
+      if (isMerged && handlers.onRemoveParagraphs) {
+        handlers.onRemoveParagraphs(unitIndices);
+      } else {
+        handlers.onRemoveParagraph(firstIndex);
+      }
+    });
     acts.appendChild(removeBtn);
+
+    if (unitIdx > 0) {
+      const mergeBtn = document.createElement('button');
+      mergeBtn.className = 'secondary';
+      mergeBtn.textContent = '⊞ מיזוג';
+      mergeBtn.addEventListener('click', () => handlers.onMerge && handlers.onMerge(unitIdx));
+      acts.appendChild(mergeBtn);
+    }
 
     div.appendChild(acts);
     return div;
@@ -743,6 +800,7 @@ SD.UI = (function () {
     renderReader, renderRemovedSection, updateSectionNav,
     renderSettings,
     applyBold,
+    computeDisplayUnits,
     openInsertionEditor, closeInsertionEditor, getInsertionEditorData, addImageToEditor, getInsertionEditorCallbacks,
     openImageEditor, rotateImageEditor, resetCrop, confirmImageEditor, closeImageEditor, getImageEditorState,
     wireCropCanvas,
