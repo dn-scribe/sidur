@@ -101,12 +101,22 @@ SD.UI = (function () {
           label.className = 'shortcut-chip-label';
           label.textContent = '★ ' + sc.label;
           label.addEventListener('click', () => handlers.onShortcutClick && handlers.onShortcutClick(s.id, sc.ref));
+          const editLabel = document.createElement('button');
+          editLabel.className = 'shortcut-chip-edit';
+          editLabel.textContent = '✎';
+          editLabel.title = 'עריכת שם';
+          editLabel.addEventListener('click', e => {
+            e.stopPropagation();
+            const newLabel = prompt('שם הקיצור:', sc.label);
+            if (newLabel !== null && newLabel.trim()) handlers.onShortcutRename && handlers.onShortcutRename(s.id, sc.id, newLabel.trim());
+          });
           const del = document.createElement('button');
           del.className = 'shortcut-chip-del';
           del.textContent = '×';
           del.title = 'מחיקת קיצור';
           del.addEventListener('click', e => { e.stopPropagation(); handlers.onShortcutDelete && handlers.onShortcutDelete(s.id, sc.id); });
           chip.appendChild(label);
+          chip.appendChild(editLabel);
           chip.appendChild(del);
           scRow.appendChild(chip);
         });
@@ -327,13 +337,15 @@ SD.UI = (function () {
     div.className = 'para-row' + (editedText !== null ? ' edited' : '') + (isMerged ? ' para-merged' : '');
     div.dataset.index = firstIndex;
 
-    // Top area: insertions + add buttons (hidden in wide view via CSS)
+    // Top area: between insertions always at top; inline stuff moves to bottom for merged cards
     const topArea = document.createElement('div');
     topArea.className = 'para-top-area';
     betweenIns.forEach(ins => topArea.appendChild(renderInsertionBlock(ins, handlers)));
     topArea.appendChild(makeAddBtn(firstIndex, handlers, 'between'));
-    inlineIns.forEach(ins => topArea.appendChild(renderInsertionBlock(ins, handlers)));
-    topArea.appendChild(makeAddBtn(firstIndex, handlers, 'inline'));
+    if (!isMerged) {
+      inlineIns.forEach(ins => topArea.appendChild(renderInsertionBlock(ins, handlers)));
+      topArea.appendChild(makeAddBtn(firstIndex, handlers, 'inline'));
+    }
     div.appendChild(topArea);
 
     const idxEl = document.createElement('div');
@@ -377,6 +389,26 @@ SD.UI = (function () {
         restoreBtn.addEventListener('click', () => handlers.onRestoreParagraph(firstIndex));
         acts.appendChild(restoreBtn);
       }
+    } else {
+      inlineIns.forEach(ins => acts.appendChild(renderInsertionBlock(ins, handlers)));
+      acts.appendChild(makeAddBtn(firstIndex, handlers, 'inline'));
+
+      const mergedCurrentText = editedText !== null
+        ? editedText
+        : unitIndices.map(i => stripHtml(allParagraphs[i] || '')).join('\n\n');
+      const editBtn = document.createElement('button');
+      editBtn.className = 'secondary';
+      editBtn.textContent = '✏ עריכת טקסט';
+      editBtn.addEventListener('click', () => enterParaEditMode(div, firstIndex, mergedCurrentText, handlers));
+      acts.appendChild(editBtn);
+
+      if (editedText !== null) {
+        const restoreBtn = document.createElement('button');
+        restoreBtn.className = 'link-btn';
+        restoreBtn.textContent = '↩ מקורי';
+        restoreBtn.addEventListener('click', () => handlers.onRestoreParagraph(firstIndex));
+        acts.appendChild(restoreBtn);
+      }
     }
 
     const removeBtn = document.createElement('button');
@@ -397,6 +429,14 @@ SD.UI = (function () {
       mergeBtn.textContent = '⊞ מיזוג';
       mergeBtn.addEventListener('click', () => handlers.onMerge && handlers.onMerge(unitIdx));
       acts.appendChild(mergeBtn);
+    }
+
+    if (isMerged) {
+      const demergeBtn = document.createElement('button');
+      demergeBtn.className = 'secondary';
+      demergeBtn.textContent = '⊟ ביטול מיזוג';
+      demergeBtn.addEventListener('click', () => handlers.onDemerge && handlers.onDemerge(unitIndices));
+      acts.appendChild(demergeBtn);
     }
 
     div.appendChild(acts);

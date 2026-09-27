@@ -153,6 +153,13 @@ textarea { resize: vertical; }
   display: flex; align-items: center; justify-content: center;
 }
 .shortcut-chip-del:hover { background: var(--border); color: var(--danger); }
+.shortcut-chip-edit {
+  background: none; border: none; padding: 0; line-height: 1;
+  font-size: 0.85rem; cursor: pointer; color: var(--muted);
+  border-radius: 50%; width: 16px; height: 16px;
+  display: flex; align-items: center; justify-content: center;
+}
+.shortcut-chip-edit:hover { background: var(--border); color: var(--accent-dark); }
 
 /* ── TOC ── */
 .toc-header { margin-bottom: 0.75rem; }
