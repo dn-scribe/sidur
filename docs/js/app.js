@@ -522,17 +522,24 @@ SD.App = (function () {
         throw new Error(err.error?.message || `שגיאת שרת ${resp.status}`);
       }
       const data = await resp.json();
-      const imageUrl = data.data[0].url;
-      // Fetch image and convert to base64 for persistent storage
-      const imgResp = await fetch(imageUrl);
-      if (!imgResp.ok) throw new Error('שגיאה בהורדת התמונה מהשרת');
-      const blob = await imgResp.blob();
-      _aiPendingDataUrl = await new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result);
-        reader.onerror = reject;
-        reader.readAsDataURL(blob);
-      });
+      const item = data.data[0];
+      if (item.b64_json) {
+        // gpt-image-1 and models returning base64 directly
+        _aiPendingDataUrl = `data:image/png;base64,${item.b64_json}`;
+      } else if (item.url) {
+        // dall-e-2/3 return a temporary URL — fetch and convert to base64
+        const imgResp = await fetch(item.url);
+        if (!imgResp.ok) throw new Error('שגיאה בהורדת התמונה מהשרת');
+        const blob = await imgResp.blob();
+        _aiPendingDataUrl = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
+      } else {
+        throw new Error('תגובה לא צפויה מ-OpenAI');
+      }
       const prev = parseFloat(localStorage.getItem('sd.aiCost') || '0');
       localStorage.setItem('sd.aiCost', (prev + imgCost).toFixed(4));
       $('ai-result-img').src = _aiPendingDataUrl;
