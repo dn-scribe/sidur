@@ -14,9 +14,19 @@ Vanilla JS PWA prayer book. Source lives in `docs/` (served via GitHub Pages at 
 - `docs/sw.js` — service worker (shell caching)
 - `docs/css/style.css` — all styles
 
-## Git workflow
+## Release checklist — required for every change
 
-Development branch: **`main-yzocwp`**. After implementing any user-visible change, always: push to the branch, open a PR into `main`, squash-merge, then immediately sync the branch back:
+Every change, no matter how small, must go through the full release pipeline so the app auto-updates when the user opens it. The service worker is the delivery mechanism: it detects a new `CACHE_NAME`, re-fetches all shell files, and activates the new code on the next page load. Skip any step and the user stays on the old version.
+
+**Before committing:**
+1. Bump `CACHE_NAME` in `docs/sw.js` (e.g. `sidur-v10` → `sidur-v11`) — **no exceptions**
+2. Bump `SD.Version.current` in `docs/js/version.js` (patch for fixes, minor for features)
+3. Add a changelog entry in `docs/js/version.js`
+
+**After committing:**
+4. Push to branch `main-yzocwp`
+5. Open a PR into `main` and squash-merge it
+6. Sync the branch back immediately:
 
 ```bash
 git fetch origin main
@@ -24,17 +34,11 @@ git reset --hard origin/main
 git push --force-with-lease origin main-yzocwp
 ```
 
-Skipping the sync leaves `main-yzocwp` diverged from `main` and triggers the stop-hook warning about unpushed commits.
+GitHub Pages rebuilds from `main` within ~1 minute. On the user's next app open (or refresh), the service worker detects `CACHE_NAME` changed, downloads fresh shell files, and the new code is live.
 
-## Service worker cache
-
-**Every release — no exceptions — must bump `CACHE_NAME` in `docs/sw.js`** (e.g. `sidur-v7` → `sidur-v8`). This applies to every change to any shell file (`app.js`, `ui.js`, `storage.js`, `api.js`, `style.css`, `sw.js`, `index.html`). Without this bump, users' browsers keep serving the old cached files and the new code never loads.
-
-Pre-commit checklist:
-1. Bump `CACHE_NAME` in `docs/sw.js`
-2. Bump `SD.Version.current` in `docs/js/version.js`
-3. Add changelog entry
+Skipping the branch sync leaves `main-yzocwp` diverged from `main`.  
+Skipping the `CACHE_NAME` bump means the browser never fetches new files — the user keeps seeing the old version.
 
 ## Versioning
 
-Bump `SD.Version.current` in `docs/js/version.js` and add a changelog entry for every user-visible change. Use semver: patch for fixes, minor for new features.
+Use semver: patch (x.x.**N**) for fixes, minor (x.**N**.0) for new features. Both `SD.Version.current` and `CACHE_NAME` must be bumped together — they travel as a pair.
