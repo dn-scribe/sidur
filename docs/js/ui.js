@@ -129,11 +129,13 @@ SD.UI = (function () {
 
   // ── TOC ──
 
-  function renderToc(items, currentRef, annotatedRefs, removedRefs, handlers) {
+  function renderToc(items, currentRef, annotatedRefs, removedRefs, handlers, opts) {
+    const { filterToAnnotated = false } = opts || {};
     const removed = removedRefs instanceof Set ? removedRefs : new Set();
     const tree = $('toc-tree');
     tree.innerHTML = '';
     let activeEl = null;
+    let pendingGroups = []; // group headers held until a visible leaf is encountered
 
     items.forEach(item => {
       if (!item.isLeaf) {
@@ -141,9 +143,12 @@ SD.UI = (function () {
         const el = document.createElement('div');
         el.className = depth === 0 ? 'toc-group' : depth === 1 ? 'toc-subgroup' : 'toc-subsubgroup';
         el.textContent = item.he;
-        tree.appendChild(el);
+        pendingGroups.push(el);
       } else {
-        if (removed.has(item.ref)) return; // removed sections are hidden from TOC
+        if (removed.has(item.ref)) return;
+        if (filterToAnnotated && !(annotatedRefs && annotatedRefs.has(item.ref))) return;
+        pendingGroups.forEach(el => tree.appendChild(el));
+        pendingGroups = [];
         const isActive = item.ref === currentRef;
         const hasAnn = annotatedRefs && annotatedRefs.has(item.ref);
         const el = document.createElement('div');
@@ -766,7 +771,7 @@ SD.UI = (function () {
   // ── Settings modal ──
 
   function renderSettings(container, { current, changelog }, opts = {}) {
-    const { siddurs = [], currentSiddurId, removedItems = [], onRestoreSection, onSwitchSiddur, onGoToBookshelf } = opts;
+    const { siddurs = [], currentSiddurId, removedItems = [], onRestoreSection, onSwitchSiddur, onGoToBookshelf, onAiSettingsSave } = opts;
     container.innerHTML = '';
 
     // My Siddurs
@@ -833,6 +838,57 @@ SD.UI = (function () {
       });
       container.appendChild(removedList);
     }
+
+    // AI Settings
+    const aiLabel = document.createElement('div');
+    aiLabel.className = 'settings-section-title';
+    aiLabel.textContent = 'יצירת תמונות AI';
+    container.appendChild(aiLabel);
+
+    const aiKeyLabel = document.createElement('label');
+    aiKeyLabel.className = 'field-label';
+    aiKeyLabel.textContent = 'מפתח OpenAI (API Key)';
+    const aiKeyInput = document.createElement('input');
+    aiKeyInput.type = 'password';
+    aiKeyInput.className = 'settings-ai-input';
+    aiKeyInput.placeholder = 'sk-...';
+    aiKeyInput.value = localStorage.getItem('sd.aiKey') || '';
+    aiKeyLabel.appendChild(aiKeyInput);
+    container.appendChild(aiKeyLabel);
+
+    const aiBaseLabel = document.createElement('label');
+    aiBaseLabel.className = 'field-label';
+    aiBaseLabel.textContent = 'פרומפט בסיס (יתווסף לכל בקשה)';
+    const aiBaseInput = document.createElement('textarea');
+    aiBaseInput.rows = 3;
+    aiBaseInput.className = 'settings-ai-input';
+    aiBaseInput.placeholder = 'לדוגמה: סגנון ציור מסורתי, צבעים חמים...';
+    aiBaseInput.value = localStorage.getItem('sd.aiBasePrompt') || '';
+    aiBaseLabel.appendChild(aiBaseInput);
+    container.appendChild(aiBaseLabel);
+
+    const aiSaveBtn = document.createElement('button');
+    aiSaveBtn.className = 'primary settings-ai-save';
+    aiSaveBtn.textContent = 'שמירת הגדרות AI';
+    aiSaveBtn.addEventListener('click', () => onAiSettingsSave && onAiSettingsSave(aiKeyInput.value.trim(), aiBaseInput.value.trim()));
+    container.appendChild(aiSaveBtn);
+
+    const aiCostRow = document.createElement('div');
+    aiCostRow.className = 'settings-ai-cost';
+    const costAmt = parseFloat(localStorage.getItem('sd.aiCost') || '0');
+    const costSpan = document.createElement('strong');
+    costSpan.textContent = `$${costAmt.toFixed(4)}`;
+    aiCostRow.appendChild(document.createTextNode('עלות כוללת: '));
+    aiCostRow.appendChild(costSpan);
+    const resetCostBtn = document.createElement('button');
+    resetCostBtn.className = 'link-btn';
+    resetCostBtn.textContent = 'איפוס';
+    resetCostBtn.addEventListener('click', () => {
+      localStorage.setItem('sd.aiCost', '0');
+      costSpan.textContent = '$0.0000';
+    });
+    aiCostRow.appendChild(resetCostBtn);
+    container.appendChild(aiCostRow);
 
     // Version
     const verRow = document.createElement('div');
