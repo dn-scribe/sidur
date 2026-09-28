@@ -1,8 +1,15 @@
 window.SD = window.SD || {};
 
 SD.Version = {
-  current: '1.11.2',
+  current: '1.11.3',
   changelog: [
+    {
+      version: '1.11.3',
+      date: 'ספטמבר 2026',
+      items: [
+        'תיקון AI — gpt-image-1 מחזיר b64_json (לא URL), טיפול בשני הפורמטים',
+      ],
+    },
     {
       version: '1.11.2',
       date: 'ספטמבר 2026',
