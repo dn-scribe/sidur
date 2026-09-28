@@ -512,10 +512,15 @@ SD.App = (function () {
     $('ai-status').textContent = 'יוצר תמונה... (כ-10 שניות)';
 
     try {
+      // dall-e-2 supports response_format:b64_json (avoids secondary URL fetch)
+      // gpt-image-1 returns b64_json by default; dall-e-3 rejects the parameter
+      const reqBody = { model, prompt: fullPrompt, n: 1, size: '1024x1024' };
+      if (model === 'dall-e-2') reqBody.response_format = 'b64_json';
+
       const resp = await fetch('https://api.openai.com/v1/images/generations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` },
-        body: JSON.stringify({ model, prompt: fullPrompt, n: 1, size: '1024x1024' }),
+        body: JSON.stringify(reqBody),
       });
       if (!resp.ok) {
         const err = await resp.json().catch(() => ({}));
@@ -524,19 +529,46 @@ SD.App = (function () {
       const data = await resp.json();
       const item = data.data[0];
       if (item.b64_json) {
-        // gpt-image-1 and models returning base64 directly
         _aiPendingDataUrl = `data:image/png;base64,${item.b64_json}`;
       } else if (item.url) {
-        // dall-e-2/3 return a temporary URL — fetch and convert to base64
-        const imgResp = await fetch(item.url);
-        if (!imgResp.ok) throw new Error('שגיאה בהורדת התמונה מהשרת');
-        const blob = await imgResp.blob();
-        _aiPendingDataUrl = await new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result);
-          reader.onerror = reject;
-          reader.readAsDataURL(blob);
+        // URL response — try fetch with auth, then without, then canvas
+        const toDataUrl = blob => new Promise((res, rej) => {
+          const r = new FileReader();
+          r.onload = () => res(r.result);
+          r.onerror = rej;
+          r.readAsDataURL(blob);
         });
+        let blob = null;
+        try {
+          const r1 = await fetch(item.url, { headers: { Authorization: `Bearer ${key}` } });
+          if (r1.ok) blob = await r1.blob();
+        } catch {}
+        if (!blob) {
+          try {
+            const r2 = await fetch(item.url);
+            if (r2.ok) blob = await r2.blob();
+          } catch {}
+        }
+        if (blob) {
+          _aiPendingDataUrl = await toDataUrl(blob);
+        } else {
+          // Last resort: canvas (works when CORS headers allow img src)
+          _aiPendingDataUrl = await new Promise((res, rej) => {
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            img.onload = () => {
+              try {
+                const c = document.createElement('canvas');
+                c.width = img.naturalWidth || 1024;
+                c.height = img.naturalHeight || 1024;
+                c.getContext('2d').drawImage(img, 0, 0);
+                res(c.toDataURL('image/png'));
+              } catch (e) { rej(e); }
+            };
+            img.onerror = () => rej(new Error('לא ניתן לטעון את התמונה מהשרת'));
+            img.src = item.url;
+          });
+        }
       } else {
         throw new Error('תגובה לא צפויה מ-OpenAI');
       }

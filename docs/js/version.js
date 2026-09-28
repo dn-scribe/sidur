@@ -1,8 +1,16 @@
 window.SD = window.SD || {};
 
 SD.Version = {
-  current: '1.11.3',
+  current: '1.11.4',
   changelog: [
+    {
+      version: '1.11.4',
+      date: 'ספטמבר 2026',
+      items: [
+        'תיקון AI — שליפת תמונה עם אימות, נסיון חוזר, ומעבר ל-canvas כגיבוי',
+        'dall-e-2 מבקש b64_json ישירות (ללא URL נוסף)',
+      ],
+    },
     {
       version: '1.11.3',
       date: 'ספטמבר 2026',
