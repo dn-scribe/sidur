@@ -25,7 +25,7 @@ Every change, no matter how small, must go through the full release pipeline so 
 
 **After committing:**
 4. Push to branch `main-yzocwp`
-5. Open a PR into `main` and squash-merge it
+5. Open a PR into `main` and **squash-merge it yourself** using `mcp__github__merge_pull_request` with `merge_method: squash` — do not wait for the user
 6. Sync the branch back immediately:
 
 ```bash
