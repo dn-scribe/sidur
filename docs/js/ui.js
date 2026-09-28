@@ -867,10 +867,29 @@ SD.UI = (function () {
     aiBaseLabel.appendChild(aiBaseInput);
     container.appendChild(aiBaseLabel);
 
+    const aiModelLabel = document.createElement('label');
+    aiModelLabel.className = 'field-label';
+    aiModelLabel.textContent = 'מודל תמונה';
+    const aiModelSelect = document.createElement('select');
+    aiModelSelect.className = 'settings-ai-input';
+    [
+      { value: 'gpt-image-1', label: 'gpt-image-1 (חדש)' },
+      { value: 'dall-e-3',    label: 'dall-e-3' },
+      { value: 'dall-e-2',    label: 'dall-e-2 (בסיסי)' },
+    ].forEach(({ value, label }) => {
+      const opt = document.createElement('option');
+      opt.value = value;
+      opt.textContent = label;
+      if (value === (localStorage.getItem('sd.aiModel') || 'gpt-image-1')) opt.selected = true;
+      aiModelSelect.appendChild(opt);
+    });
+    aiModelLabel.appendChild(aiModelSelect);
+    container.appendChild(aiModelLabel);
+
     const aiSaveBtn = document.createElement('button');
     aiSaveBtn.className = 'primary settings-ai-save';
     aiSaveBtn.textContent = 'שמירת הגדרות AI';
-    aiSaveBtn.addEventListener('click', () => onAiSettingsSave && onAiSettingsSave(aiKeyInput.value.trim(), aiBaseInput.value.trim()));
+    aiSaveBtn.addEventListener('click', () => onAiSettingsSave && onAiSettingsSave(aiKeyInput.value.trim(), aiBaseInput.value.trim(), aiModelSelect.value));
     container.appendChild(aiSaveBtn);
 
     const aiCostRow = document.createElement('div');
