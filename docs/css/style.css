@@ -355,6 +355,10 @@ body.wide-view .wide-row > .removed-group { grid-column: 1 / -1; grid-row: 1; }
   display: flex; flex-direction: column; gap: 0.7rem;
 }
 .modal-box h3 { margin: 0; font-size: 1.05rem; }
+.modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem; }
+.modal-header h3 { margin: 0; }
+.modal-close-btn { font-size: 1rem; opacity: 0.6; }
+.modal-close-btn:hover { opacity: 1; }
 .modal-image-box { max-width: 720px; }
 .modal-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
 .field-label { display: block; font-size: 0.85rem; color: var(--muted); }
