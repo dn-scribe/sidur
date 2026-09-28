@@ -510,15 +510,24 @@ SD.App = (function () {
       const resp = await fetch('https://api.openai.com/v1/images/generations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` },
-        body: JSON.stringify({ model: 'dall-e-3', prompt: fullPrompt, n: 1, size: '1024x1024', response_format: 'b64_json' }),
+        body: JSON.stringify({ model: 'dall-e-3', prompt: fullPrompt, n: 1, size: '1024x1024' }),
       });
       if (!resp.ok) {
         const err = await resp.json().catch(() => ({}));
         throw new Error(err.error?.message || `שגיאת שרת ${resp.status}`);
       }
       const data = await resp.json();
-      const b64 = data.data[0].b64_json;
-      _aiPendingDataUrl = `data:image/png;base64,${b64}`;
+      const imageUrl = data.data[0].url;
+      // Fetch image and convert to base64 for persistent storage
+      const imgResp = await fetch(imageUrl);
+      if (!imgResp.ok) throw new Error('שגיאה בהורדת התמונה מהשרת');
+      const blob = await imgResp.blob();
+      _aiPendingDataUrl = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
       const prev = parseFloat(localStorage.getItem('sd.aiCost') || '0');
       localStorage.setItem('sd.aiCost', (prev + 0.04).toFixed(4));
       $('ai-result-img').src = _aiPendingDataUrl;

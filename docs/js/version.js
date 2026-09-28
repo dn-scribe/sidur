@@ -1,8 +1,16 @@
 window.SD = window.SD || {};
 
 SD.Version = {
-  current: '1.11.0',
+  current: '1.11.1',
   changelog: [
+    {
+      version: '1.11.1',
+      date: 'ספטמבר 2026',
+      items: [
+        'תיקון יצירת AI — הסרת response_format שגרם לשגיאה בAPI',
+        'כפתור סגירה ✕ בראש חלון ההגדרות',
+      ],
+    },
     {
       version: '1.11.0',
       date: 'ספטמבר 2026',
