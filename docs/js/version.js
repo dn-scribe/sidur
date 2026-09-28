@@ -1,8 +1,16 @@
 window.SD = window.SD || {};
 
 SD.Version = {
-  current: '1.11.1',
+  current: '1.11.2',
   changelog: [
+    {
+      version: '1.11.2',
+      date: 'ספטמבר 2026',
+      items: [
+        'בחירת מודל AI בהגדרות — gpt-image-1 (ברירת מחדל), dall-e-3, dall-e-2',
+        'עדכון עלות תמונה לפי מודל נבחר',
+      ],
+    },
     {
       version: '1.11.1',
       date: 'ספטמבר 2026',

@@ -500,6 +500,11 @@ SD.App = (function () {
     const fullPrompt = [base, specific].filter(Boolean).join('\n').trim();
     if (!fullPrompt) { $('ai-status').textContent = 'יש להזין תיאור לתמונה'; return; }
 
+    const model = localStorage.getItem('sd.aiModel') || 'gpt-image-1';
+    // Approximate cost per image per model
+    const costMap = { 'gpt-image-1': 0.02, 'dall-e-3': 0.04, 'dall-e-2': 0.02 };
+    const imgCost = costMap[model] ?? 0.04;
+
     const genBtn = $('btn-ai-generate');
     genBtn.disabled = true;
     $('btn-ai-approve').hidden = true;
@@ -510,7 +515,7 @@ SD.App = (function () {
       const resp = await fetch('https://api.openai.com/v1/images/generations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` },
-        body: JSON.stringify({ model: 'dall-e-3', prompt: fullPrompt, n: 1, size: '1024x1024' }),
+        body: JSON.stringify({ model, prompt: fullPrompt, n: 1, size: '1024x1024' }),
       });
       if (!resp.ok) {
         const err = await resp.json().catch(() => ({}));
@@ -529,10 +534,10 @@ SD.App = (function () {
         reader.readAsDataURL(blob);
       });
       const prev = parseFloat(localStorage.getItem('sd.aiCost') || '0');
-      localStorage.setItem('sd.aiCost', (prev + 0.04).toFixed(4));
+      localStorage.setItem('sd.aiCost', (prev + imgCost).toFixed(4));
       $('ai-result-img').src = _aiPendingDataUrl;
       $('ai-image-result').hidden = false;
-      $('ai-status').textContent = 'עלות: $0.04 | ניתן לנסות שוב עם פרומפט אחר';
+      $('ai-status').textContent = `עלות: $${imgCost.toFixed(2)} | ניתן לנסות שוב עם פרומפט אחר`;
       $('btn-ai-approve').hidden = false;
     } catch (e) {
       $('ai-status').textContent = 'שגיאה: ' + e.message;
@@ -644,9 +649,10 @@ SD.App = (function () {
           $('modal-settings').hidden = true;
           renderBooksScreen();
         },
-        onAiSettingsSave: (key, basePrompt) => {
+        onAiSettingsSave: (key, basePrompt, model) => {
           localStorage.setItem('sd.aiKey', key);
           localStorage.setItem('sd.aiBasePrompt', basePrompt);
+          localStorage.setItem('sd.aiModel', model || 'gpt-image-1');
           UI.toast('הגדרות AI נשמרו', 'success');
         },
       });
