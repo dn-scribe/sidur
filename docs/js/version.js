@@ -1,8 +1,13 @@
 window.SD = window.SD || {};
 
 SD.Version = {
-  current: '1.11.4',
+  current: '1.11.5',
   changelog: [
+    {
+      version: '1.11.5',
+      date: 'ספטמבר 2026',
+      items: ['הסרת מספרי פסקאות מכרטיס ממוזג'],
+    },
     {
       version: '1.11.4',
       date: 'ספטמבר 2026',

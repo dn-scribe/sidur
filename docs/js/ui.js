@@ -353,10 +353,12 @@ SD.UI = (function () {
     }
     div.appendChild(topArea);
 
-    const idxEl = document.createElement('div');
-    idxEl.className = 'para-index';
-    idxEl.textContent = isMerged ? unitIndices.map(i => i + 1).join('–') : firstIndex + 1;
-    div.appendChild(idxEl);
+    if (!isMerged) {
+      const idxEl = document.createElement('div');
+      idxEl.className = 'para-index';
+      idxEl.textContent = firstIndex + 1;
+      div.appendChild(idxEl);
+    }
 
     const heEl = document.createElement('div');
     heEl.className = 'para-he';
