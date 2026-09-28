@@ -16,6 +16,8 @@ SD.App = (function () {
   let currentBookIndex = null;
   let currentAnnotation = null;   // loaded per section from IndexedDB
   let currentTextEdits = {};      // loaded per section from IndexedDB
+  let tocFilter = localStorage.getItem('sd.tocFilter') === 'true';
+  let _aiPendingDataUrl = null;
 
   function $(id) { return document.getElementById(id); }
 
@@ -141,7 +143,8 @@ SD.App = (function () {
         onSelect: (ref) => openSection(ref),
         onRemove: (ref) => removeSection(ref),
         onRestore: (ref) => restoreSection(ref),
-      });
+      }, { filterToAnnotated: tocFilter });
+      _updateTocFilterBtn();
     } catch (e) {
       UI.toast('שגיאה: ' + e.message, 'error');
     }
@@ -446,6 +449,95 @@ SD.App = (function () {
     await openSection(ref, 'top');
   }
 
+  // ── TOC filter ──
+
+  function _updateTocFilterBtn() {
+    const btn = $('btn-toc-filter');
+    if (!btn) return;
+    btn.textContent = tocFilter ? '⊚ הצג הכל' : '⊚ הצג רק פרקים שנגעתי';
+    btn.classList.toggle('active', tocFilter);
+  }
+
+  async function toggleTocFilter() {
+    tocFilter = !tocFilter;
+    localStorage.setItem('sd.tocFilter', tocFilter);
+    _updateTocFilterBtn();
+    if (!currentSiddur || !currentBookIndex) return;
+    const items = currentTocItems.filter((_, i) => i > 0 || currentTocItems[0]?.isLeaf);
+    const removedSet = new Set(currentSiddur.removedSections || []);
+    const annotatedRefs = await Storage.loadAnnotatedRefs(currentSiddur.id);
+    UI.renderToc(items, currentSiddur.currentRef, annotatedRefs, removedSet, {
+      onSelect: (ref) => openSection(ref),
+    }, { filterToAnnotated: tocFilter });
+  }
+
+  // ── AI image generation ──
+
+  function openAiImageModal() {
+    const basePrompt = localStorage.getItem('sd.aiBasePrompt') || '';
+    $('ai-base-prompt-display').textContent = basePrompt ? `פרומפט בסיס: ${basePrompt}` : '';
+    $('ai-prompt-input').value = '';
+    $('ai-image-result').hidden = true;
+    $('ai-status').textContent = '';
+    $('btn-ai-approve').hidden = true;
+    _aiPendingDataUrl = null;
+    $('modal-insertion').hidden = true;
+    $('modal-ai-image').hidden = false;
+    $('ai-prompt-input').focus();
+  }
+
+  function closeAiImageModal() {
+    $('modal-ai-image').hidden = true;
+    _aiPendingDataUrl = null;
+    $('modal-insertion').hidden = false;
+  }
+
+  async function doAiGenerate() {
+    const key = localStorage.getItem('sd.aiKey') || '';
+    if (!key) { $('ai-status').textContent = 'נדרש מפתח OpenAI — הגדר בהגדרות ⚙'; return; }
+    const specific = $('ai-prompt-input').value.trim();
+    const base = localStorage.getItem('sd.aiBasePrompt') || '';
+    const fullPrompt = [base, specific].filter(Boolean).join('\n').trim();
+    if (!fullPrompt) { $('ai-status').textContent = 'יש להזין תיאור לתמונה'; return; }
+
+    const genBtn = $('btn-ai-generate');
+    genBtn.disabled = true;
+    $('btn-ai-approve').hidden = true;
+    $('ai-image-result').hidden = true;
+    $('ai-status').textContent = 'יוצר תמונה... (כ-10 שניות)';
+
+    try {
+      const resp = await fetch('https://api.openai.com/v1/images/generations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` },
+        body: JSON.stringify({ model: 'dall-e-3', prompt: fullPrompt, n: 1, size: '1024x1024', response_format: 'b64_json' }),
+      });
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        throw new Error(err.error?.message || `שגיאת שרת ${resp.status}`);
+      }
+      const data = await resp.json();
+      const b64 = data.data[0].b64_json;
+      _aiPendingDataUrl = `data:image/png;base64,${b64}`;
+      const prev = parseFloat(localStorage.getItem('sd.aiCost') || '0');
+      localStorage.setItem('sd.aiCost', (prev + 0.04).toFixed(4));
+      $('ai-result-img').src = _aiPendingDataUrl;
+      $('ai-image-result').hidden = false;
+      $('ai-status').textContent = 'עלות: $0.04 | ניתן לנסות שוב עם פרומפט אחר';
+      $('btn-ai-approve').hidden = false;
+    } catch (e) {
+      $('ai-status').textContent = 'שגיאה: ' + e.message;
+    } finally {
+      genBtn.disabled = false;
+    }
+  }
+
+  function approveAiImage() {
+    if (!_aiPendingDataUrl) return;
+    UI.addImageToEditor({ id: Storage.genId(), dataUrl: _aiPendingDataUrl });
+    closeAiImageModal();
+  }
+
   // ── Image handling ──
 
   function handleImageFile(file) {
@@ -510,6 +602,7 @@ SD.App = (function () {
       if (e.key === 'ArrowRight' && currentSection?.prev) openSection(currentSection.prev, 'bottom');
     });
 
+    $('btn-toc-filter').addEventListener('click', () => toggleTocFilter());
     $('btn-edit-section-title').addEventListener('click', editSectionTitle);
     $('btn-add-shortcut').addEventListener('click', () => addShortcut());
     $('btn-undo-merge').addEventListener('click', () => undoMerge());
@@ -542,6 +635,11 @@ SD.App = (function () {
           $('modal-settings').hidden = true;
           renderBooksScreen();
         },
+        onAiSettingsSave: (key, basePrompt) => {
+          localStorage.setItem('sd.aiKey', key);
+          localStorage.setItem('sd.aiBasePrompt', basePrompt);
+          UI.toast('הגדרות AI נשמרו', 'success');
+        },
       });
       $('modal-settings').hidden = false;
     });
@@ -570,6 +668,12 @@ SD.App = (function () {
     });
 
     // Insertion editor
+    $('btn-ai-image').addEventListener('click', () => openAiImageModal());
+    $('btn-ai-generate').addEventListener('click', () => doAiGenerate());
+    $('btn-ai-approve').addEventListener('click', () => approveAiImage());
+    $('btn-ai-cancel').addEventListener('click', () => closeAiImageModal());
+    $('modal-ai-image').addEventListener('click', (e) => { if (e.target === $('modal-ai-image')) closeAiImageModal(); });
+
     $('btn-insertion-bold').addEventListener('click', () => UI.applyBold($('insertion-text-input')));
     $('btn-insertion-save').addEventListener('click', () => {
       const { onSave } = UI.getInsertionEditorCallbacks();
