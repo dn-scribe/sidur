@@ -1,8 +1,13 @@
 window.SD = window.SD || {};
 
 SD.Version = {
-  current: '1.11.5',
+  current: '1.11.6',
   changelog: [
+    {
+      version: '1.11.6',
+      date: 'ספטמבר 2026',
+      items: ['שמירת מיקום גלילה בעת שמירת הערה או תמונה'],
+    },
     {
       version: '1.11.5',
       date: 'ספטמבר 2026',
