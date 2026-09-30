@@ -130,21 +130,43 @@ SD.UI = (function () {
   // ── TOC ──
 
   function renderToc(items, currentRef, annotatedRefs, removedRefs, handlers, opts) {
-    const { filterToAnnotated = false } = opts || {};
+    const { filterToAnnotated = false, removedGroups } = opts || {};
     const removed = removedRefs instanceof Set ? removedRefs : new Set();
+    const removedGrp = removedGroups instanceof Set ? removedGroups : new Set();
     const tree = $('toc-tree');
     tree.innerHTML = '';
     let activeEl = null;
     let pendingGroups = []; // group headers held until a visible leaf is encountered
+    let skipDepth = null;   // skip this group's depth and all children when set
 
     items.forEach(item => {
       if (!item.isLeaf) {
+        // Exit skip mode when we reach the same or shallower depth
+        if (skipDepth !== null && item.depth <= skipDepth) skipDepth = null;
+        if (skipDepth !== null) return;
+        // Enter skip mode for removed groups
+        if (removedGrp.has(item.he)) { skipDepth = item.depth; return; }
+
         const depth = item.depth;
         const el = document.createElement('div');
         el.className = depth === 0 ? 'toc-group' : depth === 1 ? 'toc-subgroup' : 'toc-subsubgroup';
-        el.textContent = item.he;
+
+        const labelEl = document.createElement('span');
+        labelEl.textContent = item.he;
+        el.appendChild(labelEl);
+
+        if (depth === 0 && handlers.onRemoveGroup) {
+          const removeBtn = document.createElement('button');
+          removeBtn.className = 'toc-group-remove-btn';
+          removeBtn.textContent = '🚫';
+          removeBtn.title = 'הסרת חלק זה מהסידור';
+          removeBtn.addEventListener('click', (e) => { e.stopPropagation(); handlers.onRemoveGroup(item.he); });
+          el.appendChild(removeBtn);
+        }
+
         pendingGroups.push(el);
       } else {
+        if (skipDepth !== null) return;
         if (removed.has(item.ref)) return;
         if (filterToAnnotated && !(annotatedRefs && annotatedRefs.has(item.ref))) return;
         pendingGroups.forEach(el => tree.appendChild(el));
@@ -773,7 +795,7 @@ SD.UI = (function () {
   // ── Settings modal ──
 
   function renderSettings(container, { current, changelog }, opts = {}) {
-    const { siddurs = [], currentSiddurId, removedItems = [], onRestoreSection, onSwitchSiddur, onGoToBookshelf, onAiSettingsSave } = opts;
+    const { siddurs = [], currentSiddurId, removedItems = [], removedGroupItems = [], onRestoreSection, onRestoreGroup, onSwitchSiddur, onGoToBookshelf, onAiSettingsSave } = opts;
     container.innerHTML = '';
 
     // My Siddurs
@@ -813,6 +835,32 @@ SD.UI = (function () {
       addBtn.textContent = '+ הוספת סידור';
       addBtn.addEventListener('click', onGoToBookshelf);
       container.appendChild(addBtn);
+    }
+
+    // Removed groups (top-level TOC sections)
+    if (removedGroupItems.length > 0) {
+      const grpLabel = document.createElement('div');
+      grpLabel.className = 'settings-section-title';
+      grpLabel.textContent = 'חלקים שהוסרו';
+      container.appendChild(grpLabel);
+      const grpList = document.createElement('div');
+      grpList.className = 'settings-removed-list';
+      removedGroupItems.forEach(({ he }) => {
+        const row = document.createElement('div');
+        row.className = 'settings-removed-row';
+        const name = document.createElement('span');
+        name.textContent = he;
+        row.appendChild(name);
+        if (onRestoreGroup) {
+          const btn = document.createElement('button');
+          btn.className = 'link-btn';
+          btn.textContent = '↩ שחזור';
+          btn.addEventListener('click', () => onRestoreGroup(he));
+          row.appendChild(btn);
+        }
+        grpList.appendChild(row);
+      });
+      container.appendChild(grpList);
     }
 
     // Removed sections
