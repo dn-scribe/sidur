@@ -18,6 +18,7 @@ SD.App = (function () {
   let currentTextEdits = {};      // loaded per section from IndexedDB
   let tocFilter = localStorage.getItem('sd.tocFilter') === 'true';
   let _aiPendingDataUrl = null;
+  let _pendingDocxExport = null; // { mode: 'section'|'group', groupHe: string|null }
 
   function $(id) { return document.getElementById(id); }
 
@@ -145,6 +146,7 @@ SD.App = (function () {
         onRemove: (ref) => removeSection(ref),
         onRestore: (ref) => restoreSection(ref),
         onRemoveGroup: (he) => removeGroup(he),
+        onExportGroup: (he) => openDocxModal('group', he),
       }, { filterToAnnotated: tocFilter, removedGroups: removedGroupsSet });
       _updateTocFilterBtn();
     } catch (e) {
@@ -190,6 +192,7 @@ SD.App = (function () {
     UI.updateSectionNav(currentSection.prev, currentSection.next);
     $('btn-remove-section').hidden = isRemoved;
     $('btn-add-shortcut').hidden = isRemoved;
+    $('btn-export-docx').hidden = isRemoved;
     $('btn-undo-merge').hidden = !(ann.mergeUndoStack?.length > 0);
 
     if (isRemoved) {
@@ -493,6 +496,7 @@ SD.App = (function () {
     UI.renderToc(items, currentSiddur.currentRef, annotatedRefs, removedSet, {
       onSelect: (ref) => openSection(ref),
       onRemoveGroup: (he) => removeGroup(he),
+      onExportGroup: (he) => openDocxModal('group', he),
     }, { filterToAnnotated: tocFilter, removedGroups: removedGroupsSet });
   }
 
@@ -639,6 +643,57 @@ SD.App = (function () {
     renderReader(savedY);
   }
 
+  // ── DOCX export ──
+
+  function openDocxModal(mode, groupHe) {
+    _pendingDocxExport = { mode, groupHe };
+    if (mode === 'group') {
+      $('docx-modal-subtitle').textContent = `ייצוא החלק: ${groupHe}`;
+    } else {
+      const title = currentAnnotation?.customTitle || shortSectionTitle(currentSection?.heRef || currentSection?.ref || '');
+      $('docx-modal-subtitle').textContent = `ייצוא הפרק: ${title}`;
+    }
+    $('docx-status').textContent = '';
+    $('btn-do-docx').disabled = false;
+    $('modal-docx').hidden = false;
+  }
+
+  async function doDocxExport() {
+    if (!_pendingDocxExport) return;
+    const landscape = document.querySelector('input[name="docx-orient"]:checked')?.value !== 'portrait';
+    const btn = $('btn-do-docx');
+    btn.disabled = true;
+    $('docx-status').textContent = 'מייצא...';
+    try {
+      if (_pendingDocxExport.mode === 'section') {
+        const title = currentAnnotation?.customTitle || shortSectionTitle(currentSection?.heRef || currentSection?.ref || '');
+        await SD.Export.exportSection({
+          sectionData: currentSection,
+          annotation: currentAnnotation,
+          textEdits: currentTextEdits,
+          title,
+          landscape,
+        });
+      } else {
+        const items = currentTocItems.filter((_, i) => i > 0 || currentTocItems[0]?.isLeaf);
+        await SD.Export.exportGroup({
+          groupHe: _pendingDocxExport.groupHe,
+          tocItems: items,
+          siddurId: currentSiddur.id,
+          removedSections: currentSiddur.removedSections || [],
+          landscape,
+          onProgress: (msg) => { $('docx-status').textContent = msg; },
+        });
+      }
+      $('docx-status').textContent = 'הקובץ הורד ✓';
+      btn.disabled = false;
+      setTimeout(() => { $('modal-docx').hidden = true; }, 1800);
+    } catch (e) {
+      $('docx-status').textContent = 'שגיאה: ' + e.message;
+      btn.disabled = false;
+    }
+  }
+
   // ── Event wiring ──
 
   function wireEvents() {
@@ -688,6 +743,12 @@ SD.App = (function () {
     $('btn-remove-section').addEventListener('click', () => {
       if (currentSection && currentSiddur) removeSection(currentSection.ref);
     });
+
+    // DOCX export
+    $('btn-export-docx').addEventListener('click', () => { if (currentSection) openDocxModal('section', null); });
+    $('btn-do-docx').addEventListener('click', () => doDocxExport());
+    $('btn-close-docx').addEventListener('click', () => { $('modal-docx').hidden = true; });
+    $('modal-docx').addEventListener('click', (e) => { if (e.target === $('modal-docx')) $('modal-docx').hidden = true; });
 
     // Settings
     $('btn-settings').addEventListener('click', () => {
