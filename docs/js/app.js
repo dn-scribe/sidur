@@ -139,11 +139,13 @@ SD.App = (function () {
       UI.$('toc-book-title').textContent = siddur.heTitle || siddur.title;
       UI.$('toc-book-hetitle').textContent = siddur.title;
       const removedSet = new Set(siddur.removedSections || []);
+      const removedGroupsSet = new Set(siddur.removedGroups || []);
       UI.renderToc(items, siddur.currentRef, annotatedRefs, removedSet, {
         onSelect: (ref) => openSection(ref),
         onRemove: (ref) => removeSection(ref),
         onRestore: (ref) => restoreSection(ref),
-      }, { filterToAnnotated: tocFilter });
+        onRemoveGroup: (he) => removeGroup(he),
+      }, { filterToAnnotated: tocFilter, removedGroups: removedGroupsSet });
       _updateTocFilterBtn();
     } catch (e) {
       UI.toast('שגיאה: ' + e.message, 'error');
@@ -383,6 +385,25 @@ SD.App = (function () {
     if (currentBookIndex) openToc(currentSiddur, currentBookIndex);
   }
 
+  async function removeGroup(he) {
+    if (!currentSiddur) return;
+    currentSiddur.removedGroups = currentSiddur.removedGroups || [];
+    if (!currentSiddur.removedGroups.includes(he)) {
+      currentSiddur.removedGroups.push(he);
+      await Storage.saveSiddur(currentSiddur);
+    }
+    UI.toast('החלק הוסר', '');
+    if (currentBookIndex) openToc(currentSiddur, currentBookIndex);
+  }
+
+  async function restoreGroup(he) {
+    if (!currentSiddur) return;
+    currentSiddur.removedGroups = (currentSiddur.removedGroups || []).filter(g => g !== he);
+    await Storage.saveSiddur(currentSiddur);
+    UI.toast('החלק שוחזר', 'success');
+    if (currentBookIndex) openToc(currentSiddur, currentBookIndex);
+  }
+
   async function restoreSection(ref) {
     if (!currentSiddur) return;
     currentSiddur.removedSections = (currentSiddur.removedSections || []).filter(r => r !== ref);
@@ -467,10 +488,12 @@ SD.App = (function () {
     if (!currentSiddur || !currentBookIndex) return;
     const items = currentTocItems.filter((_, i) => i > 0 || currentTocItems[0]?.isLeaf);
     const removedSet = new Set(currentSiddur.removedSections || []);
+    const removedGroupsSet = new Set(currentSiddur.removedGroups || []);
     const annotatedRefs = await Storage.loadAnnotatedRefs(currentSiddur.id);
     UI.renderToc(items, currentSiddur.currentRef, annotatedRefs, removedSet, {
       onSelect: (ref) => openSection(ref),
-    }, { filterToAnnotated: tocFilter });
+      onRemoveGroup: (he) => removeGroup(he),
+    }, { filterToAnnotated: tocFilter, removedGroups: removedGroupsSet });
   }
 
   // ── AI image generation ──
@@ -674,13 +697,21 @@ SD.App = (function () {
             return { ref, label: item?.he || ref };
           })
         : [];
+      const removedGroupItems = currentSiddur
+        ? (currentSiddur.removedGroups || []).map(he => ({ he }))
+        : [];
       UI.renderSettings($('settings-content'), SD.Version, {
         siddurs,
         currentSiddurId: currentSiddur?.id,
         removedItems,
+        removedGroupItems,
         onRestoreSection: async (ref) => {
           $('modal-settings').hidden = true;
           await restoreSection(ref);
+        },
+        onRestoreGroup: async (he) => {
+          $('modal-settings').hidden = true;
+          await restoreGroup(he);
         },
         onSwitchSiddur: (s) => {
           $('modal-settings').hidden = true;

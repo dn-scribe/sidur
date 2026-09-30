@@ -1,8 +1,13 @@
 window.SD = window.SD || {};
 
 SD.Version = {
-  current: '1.11.6',
+  current: '1.12.0',
   changelog: [
+    {
+      version: '1.12.0',
+      date: 'ספטמבר 2026',
+      items: ['הסרת חלקים ראשיים מהתוכן עניינים — כפתור 🚫 בכותרת חלק, שחזור דרך הגדרות'],
+    },
     {
       version: '1.11.6',
       date: 'ספטמבר 2026',

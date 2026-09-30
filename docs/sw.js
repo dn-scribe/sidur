@@ -1,4 +1,4 @@
-const CACHE_NAME = 'sidur-v16';
+const CACHE_NAME = 'sidur-v17';
 
 const SHELL = [
   '/sidur/',
