@@ -263,17 +263,19 @@ SD.App = (function () {
       ann.insertions.sort((a, b) => a.beforeParagraph - b.beforeParagraph);
     }
 
+    const savedY = window.scrollY;
     try { await persistAnnotation(); } catch (e) { UI.toast(e.message, 'error'); return; }
     UI.closeInsertionEditor();
-    renderReader();
+    renderReader(savedY);
     UI.toast('נשמר', 'success');
   }
 
   async function deleteInsertion(id) {
     const ann = ensureAnnotation();
     ann.insertions = ann.insertions.filter(i => i.id !== id);
+    const savedY = window.scrollY;
     await persistAnnotation();
-    renderReader();
+    renderReader(savedY);
     UI.toast('נמחק', '');
   }
 
@@ -609,8 +611,9 @@ SD.App = (function () {
     const val = prompt('כותרת מותאמת אישית לפרק (ריק = ברירת מחדל):', ann.customTitle || '');
     if (val === null) return;
     ann.customTitle = val.trim() || null;
+    const savedY = window.scrollY;
     await persistAnnotation();
-    renderReader();
+    renderReader(savedY);
   }
 
   // ── Event wiring ──
