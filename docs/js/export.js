@@ -100,7 +100,11 @@ SD.Export = (function () {
 
       const firstIdx = item.indices[0];
       const insHere = (ann.insertions || []).filter(i => i.beforeParagraph === firstIdx);
-      await _renderInsertions(insHere, lib, children);
+      const betweenIns = insHere.filter(i => i.type === 'between');
+      const inlineIns  = insHere.filter(i => i.type !== 'between');
+
+      // "between" insertions sit between paragraphs — before this one
+      await _renderInsertions(betweenIns, lib, children);
 
       const isMerged = item.indices.length > 1;
       const editedText = edits[firstIdx] ?? null;
@@ -121,6 +125,9 @@ SD.Export = (function () {
         const rawText = editedText !== null ? editedText : _stripHtml(paragraphs[firstIdx] || '');
         if (rawText.trim()) children.push(_hePara(rawText, lib));
       }
+
+      // "inline" insertions sit alongside / after the paragraph
+      await _renderInsertions(inlineIns, lib, children);
     }
 
     // insertions after last paragraph
@@ -193,7 +200,7 @@ SD.Export = (function () {
     let groupDepth = null;
     const groupItems = [];
     for (const item of tocItems) {
-      if (!inGroup && !item.isLeaf && item.he === groupHe && item.depth === 0) {
+      if (!inGroup && !item.isLeaf && item.he === groupHe) {
         inGroup = true;
         groupDepth = item.depth;
         continue;
