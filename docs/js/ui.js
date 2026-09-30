@@ -155,13 +155,26 @@ SD.UI = (function () {
         labelEl.textContent = item.he;
         el.appendChild(labelEl);
 
-        if (depth === 0 && handlers.onRemoveGroup) {
-          const removeBtn = document.createElement('button');
-          removeBtn.className = 'toc-group-remove-btn';
-          removeBtn.textContent = '🚫';
-          removeBtn.title = 'הסרת חלק זה מהסידור';
-          removeBtn.addEventListener('click', (e) => { e.stopPropagation(); handlers.onRemoveGroup(item.he); });
-          el.appendChild(removeBtn);
+        if (depth === 0 && (handlers.onRemoveGroup || handlers.onExportGroup)) {
+          const btnGroup = document.createElement('div');
+          btnGroup.className = 'toc-group-btns';
+          if (handlers.onExportGroup) {
+            const exportBtn = document.createElement('button');
+            exportBtn.className = 'toc-group-export-btn';
+            exportBtn.textContent = '⬇';
+            exportBtn.title = 'ייצוא DOCX';
+            exportBtn.addEventListener('click', (e) => { e.stopPropagation(); handlers.onExportGroup(item.he); });
+            btnGroup.appendChild(exportBtn);
+          }
+          if (handlers.onRemoveGroup) {
+            const removeBtn = document.createElement('button');
+            removeBtn.className = 'toc-group-remove-btn';
+            removeBtn.textContent = '🚫';
+            removeBtn.title = 'הסרת חלק זה מהסידור';
+            removeBtn.addEventListener('click', (e) => { e.stopPropagation(); handlers.onRemoveGroup(item.he); });
+            btnGroup.appendChild(removeBtn);
+          }
+          el.appendChild(btnGroup);
         }
 
         pendingGroups.push(el);

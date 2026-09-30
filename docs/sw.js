@@ -1,4 +1,4 @@
-const CACHE_NAME = 'sidur-v17';
+const CACHE_NAME = 'sidur-v18';
 
 const SHELL = [
   '/sidur/',
@@ -8,6 +8,7 @@ const SHELL = [
   '/sidur/js/storage.js',
   '/sidur/js/ui.js',
   '/sidur/js/version.js',
+  '/sidur/js/export.js',
   '/sidur/js/app.js',
   '/sidur/favicon.svg',
   '/sidur/manifest.json',

@@ -173,12 +173,14 @@ textarea { resize: vertical; }
   border-top: 1px solid var(--border); margin-top: 0.2rem;
   display: flex; align-items: center; justify-content: space-between;
 }
-.toc-group-remove-btn {
+.toc-group-btns { display: flex; gap: 0.1rem; flex-shrink: 0; }
+.toc-group-remove-btn,
+.toc-group-export-btn {
   background: none; border: none; padding: 0 0.2rem;
   font-size: 0.85rem; cursor: pointer; opacity: 0.45; line-height: 1;
-  flex-shrink: 0;
 }
-.toc-group-remove-btn:hover { opacity: 1; }
+.toc-group-remove-btn:hover,
+.toc-group-export-btn:hover { opacity: 1; }
 .toc-group:first-child { border-top: none; margin-top: 0; padding-top: 0.2rem; }
 .toc-subgroup {
   font-size: 0.85rem; font-weight: 600; color: var(--accent-dark);
@@ -489,6 +491,11 @@ body.wide-view .wide-row > .removed-group { grid-column: 1 / -1; grid-row: 1; }
 .settings-ai-input { width: 100%; box-sizing: border-box; margin-top: 0.3rem; }
 .settings-ai-cost { display: flex; align-items: center; gap: 0.5rem; font-size: 0.88rem; margin: 0.4rem 0; }
 .settings-ai-save { margin-top: 0.4rem; font-size: 0.82rem; padding: 0.3rem 0.7rem; }
+
+/* ── DOCX export modal ── */
+.docx-orient-group { display: flex; flex-direction: column; gap: 0.55rem; margin: 0.8rem 0 1rem; }
+.docx-orient-opt { display: flex; align-items: center; gap: 0.5rem; cursor: pointer; font-size: 0.95rem; }
+.docx-orient-opt input { cursor: pointer; }
 
 /* ── Responsive ── */
 @media (max-width: 600px) {
