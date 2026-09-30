@@ -37,8 +37,8 @@ SD.Export = (function () {
       children: _boldRuns(plain, lib),
       bidirectional: true,
       alignment: 'right',
-      indent: indent ? { left: 400 } : undefined,
-      spacing,
+      indent: indent ? { right: 400 } : undefined,
+      spacing: spacing || { after: 60 },
     });
   }
 
@@ -71,18 +71,20 @@ SD.Export = (function () {
     for (const ins of insertions) {
       if (ins.title) {
         children.push(new lib.Paragraph({
-          children: [new lib.TextRun({ text: ins.title, bold: true })],
+          children: [new lib.TextRun({ text: ins.title, bold: true, size: 20 })],
           bidirectional: true,
           alignment: 'right',
-          indent: { left: 400 },
+          indent: { right: 400 },
+          spacing: { before: 100, after: 40 },
+          border: { bottom: { style: 'single', size: 4, space: 4, color: 'A0896E' } },
         }));
       }
       if (ins.text) {
-        children.push(_hePara(ins.text, lib, { indent: true }));
+        children.push(_hePara(ins.text, lib, { indent: true, spacing: { after: 60 } }));
       }
       for (const img of (ins.images || [])) {
         const run = await _imageRun(img.dataUrl, lib);
-        if (run) children.push(new lib.Paragraph({ children: [run], alignment: 'right' }));
+        if (run) children.push(new lib.Paragraph({ children: [run], alignment: 'right', spacing: { after: 60 } }));
       }
     }
   }
@@ -142,8 +144,16 @@ SD.Export = (function () {
     const A4_H = 16838;  // 297mm in twips
     const MARGIN = 1134; // ~20mm in twips
     return new lib.Document({
+      styles: {
+        default: {
+          document: {
+            run: { rightToLeft: true },
+          },
+        },
+      },
       sections: [{
         properties: {
+          bidi: true,
           page: {
             size: {
               orientation: landscape ? 'landscape' : 'portrait',
@@ -177,6 +187,7 @@ SD.Export = (function () {
       heading: level,
       bidirectional: true,
       alignment: 'right',
+      spacing: { before: 200, after: 100 },
     });
   }
 
