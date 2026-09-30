@@ -1,8 +1,16 @@
 window.SD = window.SD || {};
 
 SD.Version = {
-  current: '1.13.0',
+  current: '1.13.1',
   changelog: [
+    {
+      version: '1.13.1',
+      date: 'ספטמבר 2026',
+      items: [
+        'תיקון ייצוא DOCX — תמונות ממוקמות ליד הפסקה שלהן (inline אחרי, between לפני)',
+        'כפתורי 🚫 ⬇ על רמה 1 גם (תת-חלקים כגון ברכות הנהנין)',
+      ],
+    },
     {
       version: '1.13.0',
       date: 'ספטמבר 2026',

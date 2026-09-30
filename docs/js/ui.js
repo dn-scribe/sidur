@@ -155,7 +155,7 @@ SD.UI = (function () {
         labelEl.textContent = item.he;
         el.appendChild(labelEl);
 
-        if (depth === 0 && (handlers.onRemoveGroup || handlers.onExportGroup)) {
+        if (depth <= 1 && (handlers.onRemoveGroup || handlers.onExportGroup)) {
           const btnGroup = document.createElement('div');
           btnGroup.className = 'toc-group-btns';
           if (handlers.onExportGroup) {
