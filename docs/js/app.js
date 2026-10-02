@@ -29,14 +29,7 @@ SD.App = (function () {
     wireEvents();
     await Storage.migrateFromLocalStorage();
     siddurs = await Storage.loadSiddurs();
-    const lastId = localStorage.getItem('sd.lastSiddurId');
-    const last = lastId && siddurs.find(s => s.id === lastId);
-    if (last) {
-      currentSiddur = last;
-      openToc(last);
-    } else {
-      renderBooksScreen();
-    }
+    renderBooksScreen();
   }
 
   // ── Annotation helpers ──
