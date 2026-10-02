@@ -1,8 +1,13 @@
 window.SD = window.SD || {};
 
 SD.Version = {
-  current: '1.13.2',
+  current: '1.13.3',
   changelog: [
+    {
+      version: '1.13.3',
+      date: 'אוקטובר 2026',
+      items: ['פתיחת האפליקציה מציגה תמיד את דף הבית (ולא את הסידור האחרון)'],
+    },
     {
       version: '1.13.2',
       date: 'ספטמבר 2026',
