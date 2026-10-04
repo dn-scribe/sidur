@@ -18,6 +18,7 @@ SD.App = (function () {
   let currentTextEdits = {};      // loaded per section from IndexedDB
   let tocFilter = localStorage.getItem('sd.tocFilter') === 'true';
   let _aiPendingDataUrl = null;
+  let _aiPendingPrompt = '';
   let _pendingDocxExport = null; // { mode: 'section'|'group', groupHe: string|null }
 
   function $(id) { return document.getElementById(id); }
@@ -255,9 +256,9 @@ SD.App = (function () {
 
     if (existingId) {
       const ins = ann.insertions.find(i => i.id === existingId);
-      if (ins) { ins.title = data.title; ins.text = data.text; ins.images = data.images; }
+      if (ins) { ins.title = data.title; ins.text = data.text; ins.images = data.images; ins.aiPrompt = data.aiPrompt || ''; }
     } else {
-      ann.insertions.push({ id: Storage.genId(), beforeParagraph, type, title: data.title, text: data.text, images: data.images });
+      ann.insertions.push({ id: Storage.genId(), beforeParagraph, type, title: data.title, text: data.text, images: data.images, aiPrompt: data.aiPrompt || '' });
       ann.insertions.sort((a, b) => a.beforeParagraph - b.beforeParagraph);
     }
 
@@ -498,7 +499,7 @@ SD.App = (function () {
   function openAiImageModal() {
     const basePrompt = localStorage.getItem('sd.aiBasePrompt') || '';
     $('ai-base-prompt-display').textContent = basePrompt ? `פרומפט בסיס: ${basePrompt}` : '';
-    $('ai-prompt-input').value = '';
+    $('ai-prompt-input').value = UI.getInsertionAiPrompt();
     $('ai-image-result').hidden = true;
     $('ai-status').textContent = '';
     $('btn-ai-approve').hidden = true;
@@ -511,6 +512,7 @@ SD.App = (function () {
   function closeAiImageModal() {
     $('modal-ai-image').hidden = true;
     _aiPendingDataUrl = null;
+    _aiPendingPrompt = '';
     $('modal-insertion').hidden = false;
   }
 
@@ -594,6 +596,7 @@ SD.App = (function () {
       } else {
         throw new Error('תגובה לא צפויה מ-OpenAI');
       }
+      _aiPendingPrompt = specific;
       const prev = parseFloat(localStorage.getItem('sd.aiCost') || '0');
       localStorage.setItem('sd.aiCost', (prev + imgCost).toFixed(4));
       $('ai-result-img').src = _aiPendingDataUrl;
@@ -609,6 +612,7 @@ SD.App = (function () {
 
   function approveAiImage() {
     if (!_aiPendingDataUrl) return;
+    UI.setInsertionAiPrompt(_aiPendingPrompt);
     UI.addImageToEditor({ id: Storage.genId(), dataUrl: _aiPendingDataUrl });
     closeAiImageModal();
   }

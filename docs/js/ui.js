@@ -632,7 +632,7 @@ SD.UI = (function () {
   let _ins = {};
 
   function openInsertionEditor({ existing, onSave, onCancel }) {
-    _ins = { images: existing ? JSON.parse(JSON.stringify(existing.images || [])) : [], onSave, onCancel };
+    _ins = { images: existing ? JSON.parse(JSON.stringify(existing.images || [])) : [], aiPrompt: existing?.aiPrompt || '', onSave, onCancel };
     $('insertion-modal-title').textContent = existing ? 'עריכת הערה' : 'הוספת הערה';
     $('insertion-title-input').value = existing?.title || '';
     $('insertion-text-input').value = existing?.text || '';
@@ -662,10 +662,13 @@ SD.UI = (function () {
   }
 
   function getInsertionEditorData() {
-    return { title: $('insertion-title-input').value.trim(), text: $('insertion-text-input').value.trim(), images: _ins.images || [] };
+    return { title: $('insertion-title-input').value.trim(), text: $('insertion-text-input').value.trim(), images: _ins.images || [], aiPrompt: _ins.aiPrompt || '' };
   }
 
   function getInsertionEditorCallbacks() { return _ins; }
+
+  function getInsertionAiPrompt() { return _ins.aiPrompt || ''; }
+  function setInsertionAiPrompt(p) { _ins.aiPrompt = p || ''; }
 
   // ── Image editor modal ──
   let _img = {};
@@ -1014,6 +1017,7 @@ SD.UI = (function () {
     applyBold,
     computeDisplayUnits,
     openInsertionEditor, closeInsertionEditor, getInsertionEditorData, addImageToEditor, getInsertionEditorCallbacks,
+    getInsertionAiPrompt, setInsertionAiPrompt,
     openImageEditor, rotateImageEditor, resetCrop, confirmImageEditor, closeImageEditor, getImageEditorState,
     wireCropCanvas,
   };

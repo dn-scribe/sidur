@@ -1,8 +1,13 @@
 window.SD = window.SD || {};
 
 SD.Version = {
-  current: '1.13.3',
+  current: '1.13.4',
   changelog: [
+    {
+      version: '1.13.4',
+      date: 'אוקטובר 2026',
+      items: ['שמירת פרומפט תמונת AI בהערה — מוצג ועריך בעת עריכת הערה'],
+    },
     {
       version: '1.13.3',
       date: 'אוקטובר 2026',
