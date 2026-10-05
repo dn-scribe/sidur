@@ -531,6 +531,15 @@ SD.UI = (function () {
     editActs.appendChild(saveBtn);
     editActs.appendChild(cancelBtn);
     editArea.appendChild(editActs);
+    ta.addEventListener('click', () => {
+      const pos = ta.selectionStart;
+      const text = ta.value;
+      if (pos === 0 || /[\s\n]/.test(text[pos - 1])) return;
+      let start = pos;
+      while (start > 0 && !/[\s\n]/.test(text[start - 1])) start--;
+      ta.setSelectionRange(start, start);
+    });
+
     paraDiv.insertBefore(editArea, heEl.nextSibling);
     ta.focus();
     ta.select();
