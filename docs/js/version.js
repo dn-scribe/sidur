@@ -1,8 +1,13 @@
 window.SD = window.SD || {};
 
 SD.Version = {
-  current: '1.13.4',
+  current: '1.13.5',
   changelog: [
+    {
+      version: '1.13.5',
+      date: 'אוקטובר 2026',
+      items: ['עריכת טקסט — לחיצה על מילה מביאה את הסמן לתחילתה'],
+    },
     {
       version: '1.13.4',
       date: 'אוקטובר 2026',
