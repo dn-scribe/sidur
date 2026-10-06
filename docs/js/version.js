@@ -1,8 +1,13 @@
 window.SD = window.SD || {};
 
 SD.Version = {
-  current: '1.13.5',
+  current: '1.13.6',
   changelog: [
+    {
+      version: '1.13.6',
+      date: 'אוקטובר 2026',
+      items: ['תוכן עניינים — כיווץ/הרחבת חלקים (▼/▶) עם שמירה בין הפעלות'],
+    },
     {
       version: '1.13.5',
       date: 'אוקטובר 2026',
