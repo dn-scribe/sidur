@@ -293,6 +293,7 @@ SD.UI = (function () {
     const isWide = viewMode === 'wide';
     const maxPos = paragraphs.length;
     const removed = new Set(ann.removedParagraphs || []);
+    const foldedSet = new Set(ann.foldedParagraphs || []);
 
     if (title) {
       const titleEl = document.createElement('div');
@@ -333,12 +334,12 @@ SD.UI = (function () {
         annCol.appendChild(makeAddBtn(firstIdx, handlers, 'inline'));
         row.appendChild(annCol);
         row.appendChild(renderParagraph(item.indices, paragraphs, sectionData.text, edits, handlers, {
-          unitIdx: item.unitIdx, totalUnits: totalVisibleUnits,
+          unitIdx: item.unitIdx, totalUnits: totalVisibleUnits, foldedSet,
         }));
         content.appendChild(row);
       } else {
         content.appendChild(renderParagraph(item.indices, paragraphs, sectionData.text, edits, handlers, {
-          betweenIns, inlineIns, unitIdx: item.unitIdx, totalUnits: totalVisibleUnits,
+          betweenIns, inlineIns, unitIdx: item.unitIdx, totalUnits: totalVisibleUnits, foldedSet,
         }));
       }
     });
@@ -388,14 +389,24 @@ SD.UI = (function () {
   }
 
   function renderParagraph(unitIndices, allParagraphs, allTexts, allEdits, handlers, opts) {
-    const { betweenIns = [], inlineIns = [], unitIdx = 0, totalUnits = 1 } = opts || {};
+    const { betweenIns = [], inlineIns = [], unitIdx = 0, totalUnits = 1, foldedSet } = opts || {};
     const firstIndex = unitIndices[0];
     const isMerged = unitIndices.length > 1;
     const editedText = (allEdits || {})[firstIndex] ?? null;
+    const isFolded = foldedSet instanceof Set && foldedSet.has(firstIndex);
 
     const div = document.createElement('div');
-    div.className = 'para-row' + (editedText !== null ? ' edited' : '') + (isMerged ? ' para-merged' : '');
+    div.className = 'para-row' + (editedText !== null ? ' edited' : '') + (isMerged ? ' para-merged' : '') + (isFolded ? ' para-folded' : '');
     div.dataset.index = firstIndex;
+
+    if (handlers.onToggleFoldParagraph) {
+      const foldBtn = document.createElement('button');
+      foldBtn.className = 'para-fold-btn';
+      foldBtn.textContent = isFolded ? '▶' : '▼';
+      foldBtn.title = isFolded ? 'הרחבה' : 'כיווץ';
+      foldBtn.addEventListener('click', () => handlers.onToggleFoldParagraph(firstIndex));
+      div.appendChild(foldBtn);
+    }
 
     // Top area: between insertions always at top; inline stuff moves to bottom for merged cards
     const topArea = document.createElement('div');
@@ -418,6 +429,16 @@ SD.UI = (function () {
         idxEl.textContent = firstIndex + 1;
       }
       div.appendChild(idxEl);
+    }
+
+    {
+      const preview = document.createElement('div');
+      preview.className = 'para-fold-preview';
+      const rawText = editedText !== null
+        ? editedText
+        : stripHtml(allParagraphs[firstIndex] || '');
+      preview.textContent = rawText.length > 80 ? rawText.slice(0, 80) + '…' : rawText;
+      div.appendChild(preview);
     }
 
     const heEl = document.createElement('div');

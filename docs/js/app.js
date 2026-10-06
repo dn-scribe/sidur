@@ -56,7 +56,7 @@ SD.App = (function () {
 
   function renderBooksScreen() {
     UI.showScreen('books');
-    UI.setHeader({ title: '📖 סידור', showBack: false, showViewToggle: false, showToc: false, showEnToggle: false });
+    UI.setHeader({ title: `📖 סידור v${SD.Version.current}`, showBack: false, showViewToggle: false, showToc: false, showEnToggle: false });
     UI.renderBookCategories(Api.getLiturgyBooks(), onSelectBook);
     renderMySiddurstWithShortcuts();
     filterBooks('');
@@ -217,6 +217,7 @@ SD.App = (function () {
           onRestoreRemovedGroup: (indices) => restoreRemovedGroup(indices),
           onMerge: (unitIdx) => doMerge(unitIdx),
           onDemerge: (indices) => doDemerge(indices),
+          onToggleFoldParagraph: (index) => toggleFoldParagraph(index),
         },
       });
     }
@@ -414,6 +415,20 @@ SD.App = (function () {
     }
     await Storage.saveSiddur(currentSiddur);
     if (currentBookIndex) openToc(currentSiddur, currentBookIndex);
+  }
+
+  async function toggleFoldParagraph(index) {
+    const ann = ensureAnnotation();
+    ann.foldedParagraphs = ann.foldedParagraphs || [];
+    const pos = ann.foldedParagraphs.indexOf(index);
+    if (pos >= 0) {
+      ann.foldedParagraphs.splice(pos, 1);
+    } else {
+      ann.foldedParagraphs.push(index);
+    }
+    const savedY = window.scrollY;
+    await persistAnnotation();
+    renderReader(savedY);
   }
 
   async function restoreSection(ref) {
