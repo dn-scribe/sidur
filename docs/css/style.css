@@ -241,6 +241,20 @@ body.wide-view .wide-row .ann-col    { grid-column: 2 / 3; grid-row: 1; display:
   position: relative;
 }
 .para-index { font-size: 0.68rem; color: var(--muted); margin-bottom: 0.2rem; user-select: none; }
+.para-fold-btn {
+  position: absolute; top: 0.3rem; left: 0.4rem;
+  background: none; border: none; padding: 0.1rem 0.2rem;
+  font-size: 0.6rem; cursor: pointer; opacity: 0.3; line-height: 1; color: var(--muted);
+}
+.para-row:hover .para-fold-btn { opacity: 0.65; }
+.para-fold-btn:hover { opacity: 1; }
+.para-folded .para-fold-btn { opacity: 0.6; }
+.para-fold-preview { display: none; font-size: 0.88rem; color: var(--muted); margin-bottom: 0.1rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.para-folded .para-top-area,
+.para-folded .para-he,
+.para-folded .para-en,
+.para-folded .para-actions { display: none !important; }
+.para-folded .para-fold-preview { display: block; }
 .para-he { font-size: 1.12rem; line-height: 1.85; }
 .para-en { font-size: 0.8rem; direction: ltr; text-align: left; color: var(--muted); margin-top: 0.35rem; line-height: 1.55; }
 body.hide-en .para-en { display: none; }
