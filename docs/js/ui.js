@@ -130,24 +130,29 @@ SD.UI = (function () {
   // ── TOC ──
 
   function renderToc(items, currentRef, annotatedRefs, removedRefs, handlers, opts) {
-    const { filterToAnnotated = false, removedGroups } = opts || {};
+    const { filterToAnnotated = false, removedGroups, foldedGroups } = opts || {};
     const removed = removedRefs instanceof Set ? removedRefs : new Set();
     const removedGrp = removedGroups instanceof Set ? removedGroups : new Set();
+    const foldedGrp = foldedGroups instanceof Set ? foldedGroups : new Set();
     const tree = $('toc-tree');
     tree.innerHTML = '';
     let activeEl = null;
     let pendingGroups = []; // group headers held until a visible leaf is encountered
     let skipDepth = null;   // skip this group's depth and all children when set
+    let foldDepth = null;   // fold: skip children of a folded group
 
     items.forEach(item => {
       if (!item.isLeaf) {
-        // Exit skip mode when we reach the same or shallower depth
+        // Exit skip/fold mode when we reach the same or shallower depth
         if (skipDepth !== null && item.depth <= skipDepth) skipDepth = null;
+        if (foldDepth !== null && item.depth <= foldDepth) foldDepth = null;
         if (skipDepth !== null) return;
+        if (foldDepth !== null) return;
         // Enter skip mode for removed groups
         if (removedGrp.has(item.he)) { skipDepth = item.depth; return; }
 
         const depth = item.depth;
+        const isFolded = foldedGrp.has(item.he);
         const el = document.createElement('div');
         el.className = depth === 0 ? 'toc-group' : depth === 1 ? 'toc-subgroup' : 'toc-subsubgroup';
 
@@ -155,31 +160,46 @@ SD.UI = (function () {
         labelEl.textContent = item.he;
         el.appendChild(labelEl);
 
-        if (depth <= 1 && (handlers.onRemoveGroup || handlers.onExportGroup)) {
-          const btnGroup = document.createElement('div');
-          btnGroup.className = 'toc-group-btns';
-          if (handlers.onExportGroup) {
-            const exportBtn = document.createElement('button');
-            exportBtn.className = 'toc-group-export-btn';
-            exportBtn.textContent = '⬇';
-            exportBtn.title = 'ייצוא DOCX';
-            exportBtn.addEventListener('click', (e) => { e.stopPropagation(); handlers.onExportGroup(item.he); });
-            btnGroup.appendChild(exportBtn);
-          }
-          if (handlers.onRemoveGroup) {
-            const removeBtn = document.createElement('button');
-            removeBtn.className = 'toc-group-remove-btn';
-            removeBtn.textContent = '🚫';
-            removeBtn.title = 'הסרת חלק זה מהסידור';
-            removeBtn.addEventListener('click', (e) => { e.stopPropagation(); handlers.onRemoveGroup(item.he); });
-            btnGroup.appendChild(removeBtn);
-          }
-          el.appendChild(btnGroup);
+        const btnGroup = document.createElement('div');
+        btnGroup.className = 'toc-group-btns';
+        if (depth <= 1 && handlers.onExportGroup) {
+          const exportBtn = document.createElement('button');
+          exportBtn.className = 'toc-group-export-btn';
+          exportBtn.textContent = '⬇';
+          exportBtn.title = 'ייצוא DOCX';
+          exportBtn.addEventListener('click', (e) => { e.stopPropagation(); handlers.onExportGroup(item.he); });
+          btnGroup.appendChild(exportBtn);
         }
+        if (depth <= 1 && handlers.onRemoveGroup) {
+          const removeBtn = document.createElement('button');
+          removeBtn.className = 'toc-group-remove-btn';
+          removeBtn.textContent = '🚫';
+          removeBtn.title = 'הסרת חלק זה מהסידור';
+          removeBtn.addEventListener('click', (e) => { e.stopPropagation(); handlers.onRemoveGroup(item.he); });
+          btnGroup.appendChild(removeBtn);
+        }
+        if (handlers.onToggleFold) {
+          const foldBtn = document.createElement('button');
+          foldBtn.className = 'toc-fold-btn';
+          foldBtn.textContent = isFolded ? '▶' : '▼';
+          foldBtn.title = isFolded ? 'הרחבה' : 'כיווץ';
+          foldBtn.addEventListener('click', (e) => { e.stopPropagation(); handlers.onToggleFold(item.he); });
+          btnGroup.appendChild(foldBtn);
+        }
+        if (btnGroup.children.length > 0) el.appendChild(btnGroup);
 
-        pendingGroups.push(el);
+        if (isFolded) {
+          // Flush pending parent groups, render this header immediately, skip its children
+          pendingGroups.forEach(g => tree.appendChild(g));
+          pendingGroups = [];
+          tree.appendChild(el);
+          foldDepth = depth;
+        } else {
+          pendingGroups.push(el);
+        }
       } else {
         if (skipDepth !== null) return;
+        if (foldDepth !== null) return;
         if (removed.has(item.ref)) return;
         if (filterToAnnotated && !(annotatedRefs && annotatedRefs.has(item.ref))) return;
         pendingGroups.forEach(el => tree.appendChild(el));

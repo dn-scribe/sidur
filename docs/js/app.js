@@ -135,13 +135,15 @@ SD.App = (function () {
       UI.$('toc-book-hetitle').textContent = siddur.title;
       const removedSet = new Set(siddur.removedSections || []);
       const removedGroupsSet = new Set(siddur.removedGroups || []);
+      const foldedGroupsSet = new Set(siddur.foldedGroups || []);
       UI.renderToc(items, siddur.currentRef, annotatedRefs, removedSet, {
         onSelect: (ref) => openSection(ref),
         onRemove: (ref) => removeSection(ref),
         onRestore: (ref) => restoreSection(ref),
         onRemoveGroup: (he) => removeGroup(he),
         onExportGroup: (he) => openDocxModal('group', he),
-      }, { filterToAnnotated: tocFilter, removedGroups: removedGroupsSet });
+        onToggleFold: (he) => toggleFoldGroup(he),
+      }, { filterToAnnotated: tocFilter, removedGroups: removedGroupsSet, foldedGroups: foldedGroupsSet });
       _updateTocFilterBtn();
     } catch (e) {
       UI.toast('שגיאה: ' + e.message, 'error');
@@ -401,6 +403,19 @@ SD.App = (function () {
     if (currentBookIndex) openToc(currentSiddur, currentBookIndex);
   }
 
+  async function toggleFoldGroup(he) {
+    if (!currentSiddur) return;
+    currentSiddur.foldedGroups = currentSiddur.foldedGroups || [];
+    const idx = currentSiddur.foldedGroups.indexOf(he);
+    if (idx >= 0) {
+      currentSiddur.foldedGroups.splice(idx, 1);
+    } else {
+      currentSiddur.foldedGroups.push(he);
+    }
+    await Storage.saveSiddur(currentSiddur);
+    if (currentBookIndex) openToc(currentSiddur, currentBookIndex);
+  }
+
   async function restoreSection(ref) {
     if (!currentSiddur) return;
     currentSiddur.removedSections = (currentSiddur.removedSections || []).filter(r => r !== ref);
@@ -486,12 +501,14 @@ SD.App = (function () {
     const items = currentTocItems.filter((_, i) => i > 0 || currentTocItems[0]?.isLeaf);
     const removedSet = new Set(currentSiddur.removedSections || []);
     const removedGroupsSet = new Set(currentSiddur.removedGroups || []);
+    const foldedGroupsSet = new Set(currentSiddur.foldedGroups || []);
     const annotatedRefs = await Storage.loadAnnotatedRefs(currentSiddur.id);
     UI.renderToc(items, currentSiddur.currentRef, annotatedRefs, removedSet, {
       onSelect: (ref) => openSection(ref),
       onRemoveGroup: (he) => removeGroup(he),
       onExportGroup: (he) => openDocxModal('group', he),
-    }, { filterToAnnotated: tocFilter, removedGroups: removedGroupsSet });
+      onToggleFold: (he) => toggleFoldGroup(he),
+    }, { filterToAnnotated: tocFilter, removedGroups: removedGroupsSet, foldedGroups: foldedGroupsSet });
   }
 
   // ── AI image generation ──
