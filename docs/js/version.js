@@ -1,8 +1,13 @@
 window.SD = window.SD || {};
 
 SD.Version = {
-  current: '1.13.6',
+  current: '1.13.7',
   changelog: [
+    {
+      version: '1.13.7',
+      date: 'אוקטובר 2026',
+      items: ['פסקאות ממוזגות מציגות טווח מספרים (למשל 3–5) כתיוג יחידת הפסקה'],
+    },
     {
       version: '1.13.6',
       date: 'אוקטובר 2026',

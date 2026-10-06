@@ -408,10 +408,15 @@ SD.UI = (function () {
     }
     div.appendChild(topArea);
 
-    if (!isMerged) {
+    {
       const idxEl = document.createElement('div');
       idxEl.className = 'para-index';
-      idxEl.textContent = firstIndex + 1;
+      if (isMerged) {
+        const last = unitIndices[unitIndices.length - 1];
+        idxEl.textContent = `${firstIndex + 1}–${last + 1}`;
+      } else {
+        idxEl.textContent = firstIndex + 1;
+      }
       div.appendChild(idxEl);
     }
 
