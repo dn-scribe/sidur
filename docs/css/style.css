@@ -129,7 +129,11 @@ textarea { resize: vertical; }
   background: var(--surface); border: 1px solid var(--border);
   border-radius: var(--radius); padding: 0.65rem 0.9rem;
 }
-.siddur-item-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.1rem; cursor: pointer; }
+.siddur-item-info {
+  flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.1rem;
+  cursor: pointer; background: none; border: none; padding: 0;
+  font-family: inherit; text-align: right;
+}
 .siddur-item-info:hover .siddur-title { color: var(--accent); }
 .siddur-title { font-weight: 600; font-size: 0.95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .siddur-ref { font-size: 0.75rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
