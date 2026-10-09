@@ -1,6 +1,112 @@
 window.SD = window.SD || {};
 
 SD.Storage = (function () {
+
+  // ── Native bridge storage (Android WebView shell) ──────────────────────────
+  // When window.SidurBridge exists the app runs inside the Android shell.
+  // All data is stored as files in the app's private filesDir via four
+  // synchronous @JavascriptInterface methods.
+  // File layout:
+  //   siddurs.json              → JSON array of siddur objects
+  //   {id}/ann/{safeRef}.json   → annotation object (one per section)
+  //   {id}/edits/{safeRef}.json → { ref, edits } (text edits per section)
+
+  const BRIDGE = window.SidurBridge || null;
+
+  function safeRef(ref) {
+    // base64url-encode the ref so it is a valid filename on every OS
+    return btoa(unescape(encodeURIComponent(ref)))
+      .replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
+  }
+
+  function bjson(raw) { try { return raw ? JSON.parse(raw) : null; } catch { return null; } }
+
+  const BridgeStorage = {
+    async loadSiddurs() {
+      const rows = bjson(BRIDGE.bridgeRead('siddurs.json')) || [];
+      return rows.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    },
+    async saveSiddur(siddur) {
+      const rows = bjson(BRIDGE.bridgeRead('siddurs.json')) || [];
+      const idx = rows.findIndex(s => s.id === siddur.id);
+      if (idx >= 0) rows[idx] = siddur; else rows.push(siddur);
+      BRIDGE.bridgeWrite('siddurs.json', JSON.stringify(rows));
+    },
+    async deleteSiddur(id) {
+      const rows = (bjson(BRIDGE.bridgeRead('siddurs.json')) || []).filter(s => s.id !== id);
+      BRIDGE.bridgeWrite('siddurs.json', JSON.stringify(rows));
+      const del = (dir) => {
+        (bjson(BRIDGE.bridgeList(dir)) || []).forEach(f => BRIDGE.bridgeDelete(`${dir}/${f}`));
+      };
+      del(`${id}/ann`); del(`${id}/edits`);
+    },
+    async loadAnnotation(siddurId, ref) {
+      const ANN = { customTitle: null, insertions: [], removedParagraphs: [] };
+      const raw = bjson(BRIDGE.bridgeRead(`${siddurId}/ann/${safeRef(ref)}.json`));
+      return raw ? { ...ANN, ...raw } : { ...ANN, ref };
+    },
+    async saveAnnotation(siddurId, ann) {
+      BRIDGE.bridgeWrite(`${siddurId}/ann/${safeRef(ann.ref)}.json`, JSON.stringify(ann));
+    },
+    async loadTextEdits(siddurId, ref) {
+      return bjson(BRIDGE.bridgeRead(`${siddurId}/edits/${safeRef(ref)}.json`))?.edits || {};
+    },
+    async saveTextEdits(siddurId, ref, edits) {
+      BRIDGE.bridgeWrite(`${siddurId}/edits/${safeRef(ref)}.json`, JSON.stringify({ ref, edits }));
+    },
+    async loadAnnotatedRefs(siddurId) {
+      const refs = new Set();
+      const readAll = (dir) => (bjson(BRIDGE.bridgeList(dir)) || [])
+        .map(f => bjson(BRIDGE.bridgeRead(`${dir}/${f}`))).filter(Boolean);
+      readAll(`${siddurId}/ann`).forEach(a => {
+        if (a.customTitle || a.insertions?.length || a.removedParagraphs?.length) refs.add(a.ref);
+      });
+      readAll(`${siddurId}/edits`).forEach(e => {
+        if (Object.keys(e.edits || {}).length) refs.add(e.ref);
+      });
+      return refs;
+    },
+    async exportBackup() {
+      const siddurs = await this.loadSiddurs();
+      const out = { version: 2, siddurs: [], annotationsBySiddur: {}, textEditsBySiddur: {} };
+      const readAll = (dir) => (bjson(BRIDGE.bridgeList(dir)) || [])
+        .map(f => bjson(BRIDGE.bridgeRead(`${dir}/${f}`))).filter(Boolean);
+      for (const s of siddurs) {
+        out.siddurs.push(s);
+        out.annotationsBySiddur[s.id] = readAll(`${s.id}/ann`);
+        out.textEditsBySiddur[s.id]   = readAll(`${s.id}/edits`);
+      }
+      const blob = new Blob([JSON.stringify(out, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url;
+      a.download = `sidur-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+    },
+    async importBackup(file) {
+      const data = JSON.parse(await file.text());
+      const siddurs = data.siddurs || [];
+      if (!siddurs.length) throw new Error('פורמט קובץ שגוי');
+      const rows = bjson(BRIDGE.bridgeRead('siddurs.json')) || [];
+      for (const s of siddurs) {
+        if (!s.createdAt) s.createdAt = Date.now();
+        const idx = rows.findIndex(x => x.id === s.id);
+        if (idx >= 0) rows[idx] = s; else rows.push(s);
+      }
+      BRIDGE.bridgeWrite('siddurs.json', JSON.stringify(rows));
+      for (const s of siddurs) {
+        for (const ann of data.annotationsBySiddur?.[s.id] || []) {
+          BRIDGE.bridgeWrite(`${s.id}/ann/${safeRef(ann.ref)}.json`, JSON.stringify(ann));
+        }
+        for (const te of data.textEditsBySiddur?.[s.id] || []) {
+          BRIDGE.bridgeWrite(`${s.id}/edits/${safeRef(te.ref)}.json`, JSON.stringify(te));
+        }
+      }
+    },
+    async migrateFromLocalStorage() { /* no-op: bridge doesn't use localStorage */ },
+    genId() { return Math.random().toString(36).slice(2) + Date.now().toString(36); },
+  };
+
+  // ── IndexedDB storage (browser / PWA) ──────────────────────────────────────
   const MASTER_DB  = 'sidur-master';
   const MASTER_VER = 1;
   const SIDDUR_VER = 1;
@@ -247,6 +353,12 @@ SD.Storage = (function () {
 
   function genId() {
     return Math.random().toString(36).slice(2) + Date.now().toString(36);
+  }
+
+  // Return bridge-backed storage when running in the Android shell,
+  // otherwise return the IndexedDB-backed implementation.
+  if (BRIDGE) {
+    return BridgeStorage;
   }
 
   return {
