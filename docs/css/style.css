@@ -117,6 +117,7 @@ textarea { resize: vertical; }
   border-radius: var(--radius); padding: 0.8rem 1rem;
   cursor: pointer; display: flex; flex-direction: column; gap: 0.2rem;
   transition: border-color 0.12s, background 0.12s;
+  font-family: inherit; text-align: right; width: 100%;
 }
 .book-card:hover { border-color: var(--accent); background: var(--accent-light); }
 .book-card .book-he { font-size: 1rem; font-weight: 600; }
@@ -250,11 +251,11 @@ body.wide-view .wide-row .ann-col    { grid-column: 2 / 3; grid-row: 1; display:
 .para-fold-btn:hover { opacity: 1; }
 .para-folded .para-fold-btn { opacity: 0.6; }
 .para-fold-preview { display: none; font-size: 0.88rem; color: var(--muted); margin-bottom: 0.1rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.para-folded .para-top-area,
 .para-folded .para-he,
 .para-folded .para-en,
 .para-folded .para-actions { display: none !important; }
-.para-folded .para-fold-preview { display: block; }
+.para-folded .para-top-area .add-insertion-btn { display: none !important; }
+.para-folded .para-fold-preview { display: block; cursor: pointer; }
 .para-he { font-size: 1.12rem; line-height: 1.85; }
 .para-en { font-size: 0.8rem; direction: ltr; text-align: left; color: var(--muted); margin-top: 0.35rem; line-height: 1.55; }
 body.hide-en .para-en { display: none; }

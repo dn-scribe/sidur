@@ -48,7 +48,8 @@ SD.UI = (function () {
       const grid = document.createElement('div');
       grid.className = 'book-grid';
       cat.books.forEach(book => {
-        const card = document.createElement('div');
+        const card = document.createElement('button');
+        card.type = 'button';
         card.className = 'book-card';
         card.innerHTML = `<span class="book-he">${esc(book.heTitle)}</span><span class="book-en">${esc(book.title)}</span>`;
         card.addEventListener('click', () => onSelectBook(book));
@@ -438,6 +439,9 @@ SD.UI = (function () {
         ? editedText
         : stripHtml(allParagraphs[firstIndex] || '');
       preview.textContent = rawText.length > 80 ? rawText.slice(0, 80) + '…' : rawText;
+      if (handlers.onToggleFoldParagraph) {
+        preview.addEventListener('click', () => handlers.onToggleFoldParagraph(firstIndex));
+      }
       div.appendChild(preview);
     }
 
