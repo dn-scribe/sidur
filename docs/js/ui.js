@@ -70,25 +70,20 @@ SD.UI = (function () {
       li.className = 'siddur-item';
       const shortRef = s.currentRef ? s.currentRef.split(',').slice(-2).map(p => p.trim()).join(' · ') : '';
 
-      const info = document.createElement('div');
+      const info = document.createElement('button');
+      info.type = 'button';
       info.className = 'siddur-item-info';
       info.innerHTML = `<span class="siddur-title">${esc(s.heTitle || s.title)}</span>${shortRef ? `<span class="siddur-ref">${esc(shortRef)}</span>` : ''}`;
       info.addEventListener('click', () => handlers.onOpen(s));
 
-      const openBtn = document.createElement('button');
-      openBtn.className = 'secondary';
-      openBtn.style.cssText = 'font-size:0.82rem;padding:0.3rem 0.7rem;white-space:nowrap';
-      openBtn.textContent = 'פתיחה';
-      openBtn.addEventListener('click', () => handlers.onOpen(s));
-
       const delBtn = document.createElement('button');
+      delBtn.type = 'button';
       delBtn.className = 'danger';
-      delBtn.style.cssText = 'font-size:0.82rem;padding:0.3rem 0.5rem';
+      delBtn.style.cssText = 'font-size:0.9rem;padding:0.4rem 0.65rem;flex-shrink:0';
       delBtn.textContent = '✕';
       delBtn.addEventListener('click', () => handlers.onDelete(s));
 
       li.appendChild(info);
-      li.appendChild(openBtn);
       li.appendChild(delBtn);
 
       const shortcuts = s.shortcuts || [];
