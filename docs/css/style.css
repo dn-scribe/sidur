@@ -112,6 +112,14 @@ textarea { resize: vertical; }
   color: var(--muted); text-transform: uppercase; margin-bottom: 0.5rem;
 }
 .book-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 0.6rem; }
+.book-card-wrap { position: relative; }
+.book-hide-btn {
+  position: absolute; top: 0.3rem; left: 0.3rem;
+  background: none; border: none; padding: 0.1rem; font-size: 0.75rem;
+  cursor: pointer; opacity: 0; line-height: 1;
+}
+.book-card-wrap:hover .book-hide-btn { opacity: 0.6; }
+.book-hide-btn:hover { opacity: 1 !important; }
 .book-card {
   background: var(--surface); border: 1px solid var(--border);
   border-radius: var(--radius); padding: 0.8rem 1rem;

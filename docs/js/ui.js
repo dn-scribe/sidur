@@ -39,7 +39,7 @@ SD.UI = (function () {
 
   // ── Book list ──
 
-  function renderBookCategories(categories, onSelectBook) {
+  function renderBookCategories(categories, onSelectBook, onHideBook) {
     const container = $('book-categories');
     container.innerHTML = '';
     categories.forEach(cat => {
@@ -48,12 +48,24 @@ SD.UI = (function () {
       const grid = document.createElement('div');
       grid.className = 'book-grid';
       cat.books.forEach(book => {
+        const wrap = document.createElement('div');
+        wrap.className = 'book-card-wrap';
         const card = document.createElement('button');
         card.type = 'button';
         card.className = 'book-card';
         card.innerHTML = `<span class="book-he">${esc(book.heTitle)}</span><span class="book-en">${esc(book.title)}</span>`;
         card.addEventListener('click', () => onSelectBook(book));
-        grid.appendChild(card);
+        wrap.appendChild(card);
+        if (onHideBook) {
+          const hideBtn = document.createElement('button');
+          hideBtn.type = 'button';
+          hideBtn.className = 'book-hide-btn';
+          hideBtn.textContent = '🚫';
+          hideBtn.title = 'הסרה מהרשימה';
+          hideBtn.addEventListener('click', (e) => { e.stopPropagation(); onHideBook(book.title); });
+          wrap.appendChild(hideBtn);
+        }
+        grid.appendChild(wrap);
       });
       sec.appendChild(grid);
       container.appendChild(sec);
@@ -76,15 +88,7 @@ SD.UI = (function () {
       info.innerHTML = `<span class="siddur-title">${esc(s.heTitle || s.title)}</span>${shortRef ? `<span class="siddur-ref">${esc(shortRef)}</span>` : ''}`;
       info.addEventListener('click', () => handlers.onOpen(s));
 
-      const delBtn = document.createElement('button');
-      delBtn.type = 'button';
-      delBtn.className = 'danger';
-      delBtn.style.cssText = 'font-size:0.9rem;padding:0.4rem 0.65rem;flex-shrink:0';
-      delBtn.textContent = '✕';
-      delBtn.addEventListener('click', () => handlers.onDelete(s));
-
       li.appendChild(info);
-      li.appendChild(delBtn);
 
       const shortcuts = s.shortcuts || [];
       if (shortcuts.length > 0) {
@@ -865,7 +869,7 @@ SD.UI = (function () {
   // ── Settings modal ──
 
   function renderSettings(container, { current, changelog }, opts = {}) {
-    const { siddurs = [], currentSiddurId, removedItems = [], removedGroupItems = [], onRestoreSection, onRestoreGroup, onSwitchSiddur, onGoToBookshelf, onAiSettingsSave } = opts;
+    const { siddurs = [], currentSiddurId, removedItems = [], removedGroupItems = [], hiddenBooks = [], onRestoreSection, onRestoreGroup, onRestoreBook, onSwitchSiddur, onGoToBookshelf, onAiSettingsSave } = opts;
     container.innerHTML = '';
 
     // My Siddurs
@@ -957,6 +961,32 @@ SD.UI = (function () {
         removedList.appendChild(row);
       });
       container.appendChild(removedList);
+    }
+
+    // Hidden books
+    if (hiddenBooks.length > 0) {
+      const hbLabel = document.createElement('div');
+      hbLabel.className = 'settings-section-title';
+      hbLabel.textContent = 'ספרים שהוסרו מהרשימה';
+      container.appendChild(hbLabel);
+      const hbList = document.createElement('div');
+      hbList.className = 'settings-removed-list';
+      hiddenBooks.forEach(title => {
+        const row = document.createElement('div');
+        row.className = 'settings-removed-row';
+        const name = document.createElement('span');
+        name.textContent = title;
+        row.appendChild(name);
+        if (onRestoreBook) {
+          const btn = document.createElement('button');
+          btn.className = 'link-btn';
+          btn.textContent = '↩ שחזור';
+          btn.addEventListener('click', () => onRestoreBook(title));
+          row.appendChild(btn);
+        }
+        hbList.appendChild(row);
+      });
+      container.appendChild(hbList);
     }
 
     // AI Settings

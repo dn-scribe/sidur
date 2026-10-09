@@ -54,10 +54,22 @@ SD.App = (function () {
 
   // ── Navigation ──
 
+  function getHiddenBooks() {
+    try { return JSON.parse(localStorage.getItem('sd.hiddenBooks') || '[]'); } catch { return []; }
+  }
+
   function renderBooksScreen() {
     UI.showScreen('books');
     UI.setHeader({ title: `📖 סידור v${SD.Version.current}`, showBack: false, showViewToggle: false, showToc: false, showEnToggle: false });
-    UI.renderBookCategories(Api.getLiturgyBooks(), onSelectBook);
+    const hidden = new Set(getHiddenBooks());
+    const allCats = Api.getLiturgyBooks();
+    const visibleCats = allCats.map(cat => ({ ...cat, books: cat.books.filter(b => !hidden.has(b.title)) })).filter(cat => cat.books.length > 0);
+    UI.renderBookCategories(visibleCats, onSelectBook, (title) => {
+      const h = getHiddenBooks();
+      if (!h.includes(title)) h.push(title);
+      localStorage.setItem('sd.hiddenBooks', JSON.stringify(h));
+      renderBooksScreen();
+    });
     renderMySiddurstWithShortcuts();
     filterBooks('');
     updateStorageInfo();
@@ -837,6 +849,7 @@ SD.App = (function () {
         currentSiddurId: currentSiddur?.id,
         removedItems,
         removedGroupItems,
+        hiddenBooks: getHiddenBooks(),
         onRestoreSection: async (ref) => {
           $('modal-settings').hidden = true;
           await restoreSection(ref);
@@ -844,6 +857,12 @@ SD.App = (function () {
         onRestoreGroup: async (he) => {
           $('modal-settings').hidden = true;
           await restoreGroup(he);
+        },
+        onRestoreBook: (title) => {
+          const h = getHiddenBooks().filter(t => t !== title);
+          localStorage.setItem('sd.hiddenBooks', JSON.stringify(h));
+          $('modal-settings').hidden = true;
+          renderBooksScreen();
         },
         onSwitchSiddur: (s) => {
           $('modal-settings').hidden = true;
