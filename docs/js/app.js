@@ -190,6 +190,22 @@ SD.App = (function () {
     $('btn-add-shortcut').hidden = isRemoved;
     $('btn-export-docx').hidden = isRemoved;
     $('btn-undo-merge').hidden = !(ann.mergeUndoStack?.length > 0);
+    $('btn-fold-all').hidden = isRemoved;
+    {
+      const folded = ann.foldedParagraphs || [];
+      const allFolded = !isRemoved && currentSection && folded.length > 0 && (() => {
+        const removed2 = new Set(ann.removedParagraphs || []);
+        const inMerge2 = new Set();
+        (ann.merges || []).forEach(g => { const s=[...g].sort((a,b)=>a-b); s.slice(1).forEach(i=>inMerge2.add(i)); });
+        for (let i = 0; i < currentSection.he.length; i++) {
+          if (removed2.has(i) || inMerge2.has(i)) continue;
+          if (!folded.includes(i)) return false;
+        }
+        return true;
+      })();
+      $('btn-fold-all').textContent = allFolded ? '⊞' : '⊟';
+      $('btn-fold-all').title = allFolded ? 'הרחבת כל הפסקאות' : 'כיווץ כל הפסקאות';
+    }
 
     if (isRemoved) {
       UI.renderRemovedSection({
@@ -431,6 +447,31 @@ SD.App = (function () {
     renderReader(savedY);
   }
 
+  async function toggleFoldAll() {
+    if (!currentSection) return;
+    const ann = ensureAnnotation();
+    const removed = new Set(ann.removedParagraphs || []);
+    const mergeGroups = new Map();
+    (ann.merges || []).forEach(group => {
+      const sorted = [...group].sort((a, b) => a - b);
+      mergeGroups.set(sorted[0], sorted);
+    });
+    const inMerge = new Set();
+    mergeGroups.forEach((g) => g.forEach(i => inMerge.add(i)));
+    const visibleFirstIndices = [];
+    for (let i = 0; i < currentSection.he.length; i++) {
+      if (removed.has(i)) continue;
+      if (inMerge.has(i) && !mergeGroups.has(i)) continue;
+      visibleFirstIndices.push(i);
+    }
+    const folded = ann.foldedParagraphs || [];
+    const allFolded = visibleFirstIndices.every(i => folded.includes(i));
+    ann.foldedParagraphs = allFolded ? [] : [...visibleFirstIndices];
+    const savedY = window.scrollY;
+    await persistAnnotation();
+    renderReader(savedY);
+  }
+
   async function restoreSection(ref) {
     if (!currentSiddur) return;
     currentSiddur.removedSections = (currentSiddur.removedSections || []).filter(r => r !== ref);
@@ -444,7 +485,6 @@ SD.App = (function () {
   }
 
   async function onDeleteSiddur(siddur) {
-    if (!confirm(`למחוק את "${siddur.heTitle || siddur.title}" מהרשימה?`)) return;
     siddurs = siddurs.filter(s => s.id !== siddur.id);
     if (localStorage.getItem('sd.lastSiddurId') === siddur.id) localStorage.removeItem('sd.lastSiddurId');
     await Storage.deleteSiddur(siddur.id);
@@ -772,6 +812,8 @@ SD.App = (function () {
     $('btn-remove-section').addEventListener('click', () => {
       if (currentSection && currentSiddur) removeSection(currentSection.ref);
     });
+
+    $('btn-fold-all').addEventListener('click', () => toggleFoldAll());
 
     // DOCX export
     $('btn-export-docx').addEventListener('click', () => { if (currentSection) openDocxModal('section', null); });
