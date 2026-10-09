@@ -1,8 +1,15 @@
 window.SD = window.SD || {};
 
 SD.Version = {
-  current: '1.14.1',
+  current: '1.14.2',
   changelog: [
+    {
+      version: '1.14.2',
+      date: 'אוקטובר 2026',
+      items: [
+        'storage.js — זיהוי גשר Android (SidurBridge); כל הנתונים נכתבים לקבצים כשמופעל מהאפליקציה',
+      ],
+    },
     {
       version: '1.14.1',
       date: 'אוקטובר 2026',
