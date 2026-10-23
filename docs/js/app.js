@@ -19,6 +19,7 @@ SD.App = (function () {
   let tocFilter = localStorage.getItem('sd.tocFilter') === 'true';
   let _aiPendingDataUrl = null;
   let _aiPendingPrompt = '';
+  let _pendingAiCost = 0;
   let _pendingDocxExport = null; // { mode: 'section'|'group', groupHe: string|null }
 
   function $(id) { return document.getElementById(id); }
@@ -597,6 +598,7 @@ SD.App = (function () {
     $('modal-ai-image').hidden = true;
     _aiPendingDataUrl = null;
     _aiPendingPrompt = '';
+    _pendingAiCost = 0;
     $('modal-insertion').hidden = false;
   }
 
@@ -609,15 +611,50 @@ SD.App = (function () {
     if (!fullPrompt) { $('ai-status').textContent = 'יש להזין תיאור לתמונה'; return; }
 
     const model = localStorage.getItem('sd.aiModel') || 'gpt-image-1';
-    // Approximate cost per image per model
-    const costMap = { 'gpt-image-1': 0.02, 'dall-e-3': 0.04, 'dall-e-2': 0.02 };
-    const imgCost = costMap[model] ?? 0.04;
+    // Fixed fallback costs; gpt-image-1 actual cost is read from response usage
+    const costMap = { 'gpt-image-1': 0.042, 'dall-e-3': 0.040, 'dall-e-2': 0.020 };
+    const fallbackCost = costMap[model] ?? 0.042;
 
     const genBtn = $('btn-ai-generate');
     genBtn.disabled = true;
     $('btn-ai-approve').hidden = true;
     $('ai-image-result').hidden = true;
-    $('ai-status').textContent = 'יוצר תמונה... (כ-10 שניות)';
+
+    // Progress bar helpers
+    let _progressTimer = null;
+    let _progressVal = 0;
+    function _startProgress() {
+      $('ai-progress-bar').hidden = false;
+      $('ai-progress-fill').style.transition = 'width 0.6s ease';
+      $('ai-progress-fill').style.width = '0%';
+      _progressVal = 0;
+      // Slowly fill to 80% over ~45s while waiting for the server
+      _progressTimer = setInterval(() => {
+        if (_progressVal < 80) {
+          _progressVal = Math.min(_progressVal + 80 / 90, 80); // ~45s at 500ms intervals
+          $('ai-progress-fill').style.width = _progressVal + '%';
+        }
+      }, 500);
+    }
+    function _advanceProgress(pct) {
+      clearInterval(_progressTimer);
+      _progressTimer = null;
+      _progressVal = pct;
+      $('ai-progress-fill').style.width = pct + '%';
+    }
+    function _endProgress() {
+      clearInterval(_progressTimer);
+      _progressTimer = null;
+      $('ai-progress-fill').style.transition = 'width 0.3s ease';
+      $('ai-progress-fill').style.width = '100%';
+      setTimeout(() => {
+        $('ai-progress-bar').hidden = true;
+        $('ai-progress-fill').style.width = '0%';
+      }, 400);
+    }
+
+    _startProgress();
+    $('ai-status').textContent = 'שולח בקשה ל-OpenAI...';
 
     try {
       // dall-e-2 supports response_format:b64_json (avoids secondary URL fetch)
@@ -625,6 +662,7 @@ SD.App = (function () {
       const reqBody = { model, prompt: fullPrompt, n: 1, size: '1024x1024' };
       if (model === 'dall-e-2') reqBody.response_format = 'b64_json';
 
+      $('ai-status').textContent = 'ממתין לשרת... (30-60 שניות)';
       const resp = await fetch('https://api.openai.com/v1/images/generations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` },
@@ -634,12 +672,15 @@ SD.App = (function () {
         const err = await resp.json().catch(() => ({}));
         throw new Error(err.error?.message || `שגיאת שרת ${resp.status}`);
       }
+      _advanceProgress(88);
+      $('ai-status').textContent = 'מעבד תמונה...';
       const data = await resp.json();
       const item = data.data[0];
       if (item.b64_json) {
         _aiPendingDataUrl = `data:image/png;base64,${item.b64_json}`;
       } else if (item.url) {
         // URL response — try fetch with auth, then without, then canvas
+        $('ai-status').textContent = 'מוריד תמונה...';
         const toDataUrl = blob => new Promise((res, rej) => {
           const r = new FileReader();
           r.onload = () => res(r.result);
@@ -680,14 +721,25 @@ SD.App = (function () {
       } else {
         throw new Error('תגובה לא צפויה מ-OpenAI');
       }
+
+      // Compute actual cost: gpt-image-1 returns token usage we can price exactly
+      let imgCost = fallbackCost;
+      if (model === 'gpt-image-1' && data.usage) {
+        const inCost  = (data.usage.input_tokens  || 0) * 5  / 1_000_000;
+        const outCost = (data.usage.output_tokens || 0) * 40 / 1_000_000;
+        if (inCost + outCost > 0) imgCost = inCost + outCost;
+      }
+
+      _pendingAiCost = imgCost;
       _aiPendingPrompt = specific;
-      const prev = parseFloat(localStorage.getItem('sd.aiCost') || '0');
-      localStorage.setItem('sd.aiCost', (prev + imgCost).toFixed(4));
+      _endProgress();
       $('ai-result-img').src = _aiPendingDataUrl;
       $('ai-image-result').hidden = false;
-      $('ai-status').textContent = `עלות: $${imgCost.toFixed(2)} | ניתן לנסות שוב עם פרומפט אחר`;
+      $('ai-status').textContent = `עלות: $${imgCost.toFixed(4)} | ניתן לנסות שוב עם פרומפט אחר`;
       $('btn-ai-approve').hidden = false;
     } catch (e) {
+      clearInterval(_progressTimer);
+      $('ai-progress-bar').hidden = true;
       $('ai-status').textContent = 'שגיאה: ' + e.message;
     } finally {
       genBtn.disabled = false;
@@ -696,6 +748,8 @@ SD.App = (function () {
 
   function approveAiImage() {
     if (!_aiPendingDataUrl) return;
+    const prev = parseFloat(localStorage.getItem('sd.aiCost') || '0');
+    localStorage.setItem('sd.aiCost', (prev + _pendingAiCost).toFixed(4));
     UI.setInsertionAiPrompt(_aiPendingPrompt);
     UI.addImageToEditor({ id: Storage.genId(), dataUrl: _aiPendingDataUrl });
     closeAiImageModal();
