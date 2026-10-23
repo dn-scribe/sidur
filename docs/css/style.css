@@ -516,6 +516,8 @@ body.wide-view .wide-row > .removed-group { grid-column: 1 / -1; grid-row: 1; }
 .ai-base-prompt-display { font-size: 0.82rem; margin-bottom: 0.5rem; white-space: pre-wrap; max-height: 3.5rem; overflow: hidden; }
 .ai-image-result { margin: 0.75rem 0; border-radius: 8px; overflow: hidden; border: 1px solid var(--border); }
 .ai-image-result img { display: block; width: 100%; max-height: 340px; object-fit: contain; background: var(--bg2); }
+.ai-progress-bar { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; margin: 0.5rem 0; }
+.ai-progress-fill { height: 100%; background: var(--accent); border-radius: 3px; width: 0%; transition: width 0.6s ease; }
 .ai-status { font-size: 0.82rem; min-height: 1.2em; margin: 0.3rem 0; }
 
 /* ── Settings AI section ── */
