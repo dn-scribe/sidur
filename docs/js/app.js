@@ -732,6 +732,8 @@ SD.App = (function () {
 
       _pendingAiCost = imgCost;
       _aiPendingPrompt = specific;
+      const prev = parseFloat(localStorage.getItem('sd.aiCost') || '0');
+      localStorage.setItem('sd.aiCost', (prev + imgCost).toFixed(4));
       _endProgress();
       $('ai-result-img').src = _aiPendingDataUrl;
       $('ai-image-result').hidden = false;
@@ -748,8 +750,6 @@ SD.App = (function () {
 
   function approveAiImage() {
     if (!_aiPendingDataUrl) return;
-    const prev = parseFloat(localStorage.getItem('sd.aiCost') || '0');
-    localStorage.setItem('sd.aiCost', (prev + _pendingAiCost).toFixed(4));
     UI.setInsertionAiPrompt(_aiPendingPrompt);
     UI.addImageToEditor({ id: Storage.genId(), dataUrl: _aiPendingDataUrl });
     closeAiImageModal();
