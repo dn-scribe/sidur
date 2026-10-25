@@ -1,8 +1,16 @@
 window.SD = window.SD || {};
 
 SD.Version = {
-  current: '1.14.5',
+  current: '1.14.6',
   changelog: [
+    {
+      version: '1.14.6',
+      date: 'אוקטובר 2026',
+      items: [
+        'מודלי תמונה מעודכנים: dall-e-2/3 פוסקו מ-OpenAI (מאי 2026)',
+        'מודלים נוכחיים: chatgpt-image-latest (ברירת מחדל), gpt-image-1, gpt-image-1-mini',
+      ],
+    },
     {
       version: '1.14.5',
       date: 'אוקטובר 2026',
