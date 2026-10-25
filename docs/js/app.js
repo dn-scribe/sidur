@@ -610,7 +610,7 @@ SD.App = (function () {
     const fullPrompt = [base, specific].filter(Boolean).join('\n').trim();
     if (!fullPrompt) { $('ai-status').textContent = 'יש להזין תיאור לתמונה'; return; }
 
-    const model = localStorage.getItem('sd.aiModel') || 'gpt-image-1';
+    const model = localStorage.getItem('sd.aiModel') || 'dall-e-3';
     // Fixed fallback costs; gpt-image-1 actual cost is read from response usage
     const costMap = { 'gpt-image-1': 0.042, 'dall-e-3': 0.040, 'dall-e-2': 0.020 };
     const fallbackCost = costMap[model] ?? 0.042;
@@ -930,7 +930,7 @@ SD.App = (function () {
         onAiSettingsSave: (key, basePrompt, model) => {
           localStorage.setItem('sd.aiKey', key);
           localStorage.setItem('sd.aiBasePrompt', basePrompt);
-          localStorage.setItem('sd.aiModel', model || 'gpt-image-1');
+          localStorage.setItem('sd.aiModel', model || 'dall-e-3');
           UI.toast('הגדרות AI נשמרו', 'success');
         },
       });

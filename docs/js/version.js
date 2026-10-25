@@ -1,8 +1,15 @@
 window.SD = window.SD || {};
 
 SD.Version = {
-  current: '1.14.4',
+  current: '1.14.5',
   changelog: [
+    {
+      version: '1.14.5',
+      date: 'אוקטובר 2026',
+      items: [
+        'מודל ברירת מחדל לתמונות AI שונה ל-dall-e-3 — gpt-image-1 דורש גישה מיוחדת ב-OpenAI',
+      ],
+    },
     {
       version: '1.14.4',
       date: 'אוקטובר 2026',
