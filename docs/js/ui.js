@@ -1023,14 +1023,14 @@ SD.UI = (function () {
     const aiModelSelect = document.createElement('select');
     aiModelSelect.className = 'settings-ai-input';
     [
-      { value: 'dall-e-3',    label: 'dall-e-3' },
-      { value: 'dall-e-2',    label: 'dall-e-2 (בסיסי)' },
-      { value: 'gpt-image-1', label: 'gpt-image-1 (דורש גישה מיוחדת)' },
+      { value: 'chatgpt-image-latest', label: 'chatgpt-image-latest (ברירת מחדל)' },
+      { value: 'gpt-image-1',         label: 'gpt-image-1' },
+      { value: 'gpt-image-1-mini',    label: 'gpt-image-1-mini (זול יותר)' },
     ].forEach(({ value, label }) => {
       const opt = document.createElement('option');
       opt.value = value;
       opt.textContent = label;
-      if (value === (localStorage.getItem('sd.aiModel') || 'dall-e-3')) opt.selected = true;
+      if (value === (localStorage.getItem('sd.aiModel') || 'chatgpt-image-latest')) opt.selected = true;
       aiModelSelect.appendChild(opt);
     });
     aiModelLabel.appendChild(aiModelSelect);

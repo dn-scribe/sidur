@@ -610,9 +610,9 @@ SD.App = (function () {
     const fullPrompt = [base, specific].filter(Boolean).join('\n').trim();
     if (!fullPrompt) { $('ai-status').textContent = 'יש להזין תיאור לתמונה'; return; }
 
-    const model = localStorage.getItem('sd.aiModel') || 'dall-e-3';
-    // Fixed fallback costs; gpt-image-1 actual cost is read from response usage
-    const costMap = { 'gpt-image-1': 0.042, 'dall-e-3': 0.040, 'dall-e-2': 0.020 };
+    const model = localStorage.getItem('sd.aiModel') || 'chatgpt-image-latest';
+    // All current GPT image models return usage; fallback only if usage missing
+    const costMap = { 'chatgpt-image-latest': 0.042, 'gpt-image-1': 0.042, 'gpt-image-1-mini': 0.011 };
     const fallbackCost = costMap[model] ?? 0.042;
 
     const genBtn = $('btn-ai-generate');
@@ -657,10 +657,8 @@ SD.App = (function () {
     $('ai-status').textContent = 'שולח בקשה ל-OpenAI...';
 
     try {
-      // dall-e-2 supports response_format:b64_json (avoids secondary URL fetch)
-      // gpt-image-1 returns b64_json by default; dall-e-3 rejects the parameter
+      // All current GPT image models return b64_json; response_format not supported
       const reqBody = { model, prompt: fullPrompt, n: 1, size: '1024x1024' };
-      if (model === 'dall-e-2') reqBody.response_format = 'b64_json';
 
       $('ai-status').textContent = 'ממתין לשרת... (30-60 שניות)';
       const resp = await fetch('https://api.openai.com/v1/images/generations', {
@@ -676,55 +674,12 @@ SD.App = (function () {
       $('ai-status').textContent = 'מעבד תמונה...';
       const data = await resp.json();
       const item = data.data[0];
-      if (item.b64_json) {
-        _aiPendingDataUrl = `data:image/png;base64,${item.b64_json}`;
-      } else if (item.url) {
-        // URL response — try fetch with auth, then without, then canvas
-        $('ai-status').textContent = 'מוריד תמונה...';
-        const toDataUrl = blob => new Promise((res, rej) => {
-          const r = new FileReader();
-          r.onload = () => res(r.result);
-          r.onerror = rej;
-          r.readAsDataURL(blob);
-        });
-        let blob = null;
-        try {
-          const r1 = await fetch(item.url, { headers: { Authorization: `Bearer ${key}` } });
-          if (r1.ok) blob = await r1.blob();
-        } catch {}
-        if (!blob) {
-          try {
-            const r2 = await fetch(item.url);
-            if (r2.ok) blob = await r2.blob();
-          } catch {}
-        }
-        if (blob) {
-          _aiPendingDataUrl = await toDataUrl(blob);
-        } else {
-          // Last resort: canvas (works when CORS headers allow img src)
-          _aiPendingDataUrl = await new Promise((res, rej) => {
-            const img = new Image();
-            img.crossOrigin = 'anonymous';
-            img.onload = () => {
-              try {
-                const c = document.createElement('canvas');
-                c.width = img.naturalWidth || 1024;
-                c.height = img.naturalHeight || 1024;
-                c.getContext('2d').drawImage(img, 0, 0);
-                res(c.toDataURL('image/png'));
-              } catch (e) { rej(e); }
-            };
-            img.onerror = () => rej(new Error('לא ניתן לטעון את התמונה מהשרת'));
-            img.src = item.url;
-          });
-        }
-      } else {
-        throw new Error('תגובה לא צפויה מ-OpenAI');
-      }
+      if (!item?.b64_json) throw new Error('תגובה לא צפויה מ-OpenAI');
+      _aiPendingDataUrl = `data:image/png;base64,${item.b64_json}`;
 
-      // Compute actual cost: gpt-image-1 returns token usage we can price exactly
+      // Compute actual cost from token usage (all GPT image models include it)
       let imgCost = fallbackCost;
-      if (model === 'gpt-image-1' && data.usage) {
+      if (data.usage) {
         const inCost  = (data.usage.input_tokens  || 0) * 5  / 1_000_000;
         const outCost = (data.usage.output_tokens || 0) * 40 / 1_000_000;
         if (inCost + outCost > 0) imgCost = inCost + outCost;
@@ -930,7 +885,7 @@ SD.App = (function () {
         onAiSettingsSave: (key, basePrompt, model) => {
           localStorage.setItem('sd.aiKey', key);
           localStorage.setItem('sd.aiBasePrompt', basePrompt);
-          localStorage.setItem('sd.aiModel', model || 'dall-e-3');
+          localStorage.setItem('sd.aiModel', model || 'chatgpt-image-latest');
           UI.toast('הגדרות AI נשמרו', 'success');
         },
       });
