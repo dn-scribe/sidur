@@ -453,6 +453,16 @@ SD.UI = (function () {
     } else {
       heEl.innerHTML = allParagraphs[firstIndex] || '';
     }
+    heEl.style.cursor = 'text';
+    heEl.addEventListener('click', () => {
+      if (div.querySelector('.para-edit-area')) return; // already editing
+      const currentEditText = editedText !== null
+        ? editedText
+        : (isMerged
+            ? unitIndices.map(i => stripHtml(allParagraphs[i] || '')).join('\n\n')
+            : stripHtml(allParagraphs[firstIndex] || ''));
+      enterParaEditMode(div, firstIndex, currentEditText, handlers);
+    });
     div.appendChild(heEl);
 
     const enText = (allTexts || [])[firstIndex] || '';
