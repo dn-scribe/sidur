@@ -68,7 +68,13 @@ SD.Storage = (function () {
     },
     async exportBackup() {
       const siddurs = await this.loadSiddurs();
-      const out = { version: 2, siddurs: [], annotationsBySiddur: {}, textEditsBySiddur: {} };
+      const out = { version: 2, siddurs: [], annotationsBySiddur: {}, textEditsBySiddur: {},
+        settings: {
+          hiddenBooks:   JSON.parse(localStorage.getItem('sd.hiddenBooks') || '[]'),
+          aiModel:       localStorage.getItem('sd.aiModel') || '',
+          aiBasePrompt:  localStorage.getItem('sd.aiBasePrompt') || '',
+        },
+      };
       const readAll = (dir) => (bjson(BRIDGE.bridgeList(dir)) || [])
         .map(f => bjson(BRIDGE.bridgeRead(`${dir}/${f}`))).filter(Boolean);
       for (const s of siddurs) {
@@ -100,6 +106,12 @@ SD.Storage = (function () {
         for (const te of data.textEditsBySiddur?.[s.id] || []) {
           BRIDGE.bridgeWrite(`${s.id}/edits/${safeRef(te.ref)}.json`, JSON.stringify(te));
         }
+      }
+      if (data.settings) {
+        const { hiddenBooks, aiModel, aiBasePrompt } = data.settings;
+        if (Array.isArray(hiddenBooks)) localStorage.setItem('sd.hiddenBooks', JSON.stringify(hiddenBooks));
+        if (aiModel)      localStorage.setItem('sd.aiModel', aiModel);
+        if (aiBasePrompt !== undefined) localStorage.setItem('sd.aiBasePrompt', aiBasePrompt);
       }
     },
     async migrateFromLocalStorage() { /* no-op: bridge doesn't use localStorage */ },
@@ -255,7 +267,13 @@ SD.Storage = (function () {
 
   async function exportBackup() {
     const siddurs = await loadSiddurs();
-    const out = { version: 2, siddurs: [], annotationsBySiddur: {}, textEditsBySiddur: {} };
+    const out = { version: 2, siddurs: [], annotationsBySiddur: {}, textEditsBySiddur: {},
+      settings: {
+        hiddenBooks:   JSON.parse(localStorage.getItem('sd.hiddenBooks') || '[]'),
+        aiModel:       localStorage.getItem('sd.aiModel') || '',
+        aiBasePrompt:  localStorage.getItem('sd.aiBasePrompt') || '',
+      },
+    };
     for (const s of siddurs) {
       out.siddurs.push(s);
       const db = await openSiddurDb(s.id);
@@ -309,6 +327,13 @@ SD.Storage = (function () {
         }
       }
       db.close();
+    }
+
+    if (data.settings) {
+      const { hiddenBooks, aiModel, aiBasePrompt } = data.settings;
+      if (Array.isArray(hiddenBooks)) localStorage.setItem('sd.hiddenBooks', JSON.stringify(hiddenBooks));
+      if (aiModel)      localStorage.setItem('sd.aiModel', aiModel);
+      if (aiBasePrompt !== undefined) localStorage.setItem('sd.aiBasePrompt', aiBasePrompt);
     }
   }
 
